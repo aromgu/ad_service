@@ -1,0 +1,37 @@
+# 멀티모달 VLM Triton 설정 (스켈레톤 — 실제 텐서 스펙은 모델 확정 후 채운다).
+name: "vlm"
+backend: "python"
+max_batch_size: 8
+
+input [
+  {
+    name: "PROMPT"
+    data_type: TYPE_STRING
+    dims: [ 1 ]
+  },
+  {
+    name: "IMAGE"
+    data_type: TYPE_UINT8
+    dims: [ -1 ]          # 인코딩된 이미지 바이트 (jpg/png), 없으면 빈 텐서
+    optional: true
+  }
+]
+
+output [
+  {
+    name: "TEXT"
+    data_type: TYPE_STRING
+    dims: [ 1 ]
+  }
+]
+
+dynamic_batching {
+  max_queue_delay_microseconds: 5000
+}
+
+instance_group [
+  {
+    count: 1
+    kind: KIND_GPU
+  }
+]

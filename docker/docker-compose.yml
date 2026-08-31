@@ -1,0 +1,61 @@
+# 로컬 개발용 compose.
+#   docker compose -f docker/docker-compose.yml up api          # CPU API 서버
+#   docker compose -f docker/docker-compose.yml --profile gpu up # GPU 추론 서버
+#   docker compose -f docker/docker-compose.yml --profile triton up triton
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: ad-service:cpu
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../.env
+    volumes:
+      - ../src:/app/src
+      - ../configs:/app/configs
+      - ../data:/app/data
+    command: >
+      uvicorn ad_service.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+  api-gpu:
+    profiles: ["gpu"]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.gpu
+    image: ad-service:gpu
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../.env
+    volumes:
+      - ../models/checkpoints:/app/models/checkpoints
+      - ../data:/app/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # NVIDIA Triton Inference Server (모델 서빙 전용).
+  # ../deploy/triton/model_repository 에 모델을 배치한 뒤 사용.
+  triton:
+    profiles: ["triton"]
+    image: nvcr.io/nvidia/tritonserver:24.05-py3
+    ports:
+      - "8001:8000"   # HTTP
+      - "8002:8001"   # gRPC
+      - "8003:8002"   # metrics (Prometheus)
+    volumes:
+      - ../deploy/triton/model_repository:/models
+    command: tritonserver --model-repository=/models --model-control-mode=poll
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

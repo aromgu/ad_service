@@ -1,0 +1,37 @@
+# 이미지 생성 모델 Triton 설정 (스켈레톤).
+name: "image_generator"
+backend: "python"
+max_batch_size: 4
+
+input [
+  {
+    name: "PROMPT"
+    data_type: TYPE_STRING
+    dims: [ 1 ]
+  },
+  {
+    name: "INIT_IMAGE"
+    data_type: TYPE_UINT8
+    dims: [ -1 ]          # img2img 용 초기 이미지 바이트, 옵션
+    optional: true
+  }
+]
+
+output [
+  {
+    name: "IMAGE"
+    data_type: TYPE_UINT8
+    dims: [ -1 ]          # 인코딩된 결과 이미지 바이트
+  }
+]
+
+dynamic_batching {
+  max_queue_delay_microseconds: 10000
+}
+
+instance_group [
+  {
+    count: 1
+    kind: KIND_GPU
+  }
+]

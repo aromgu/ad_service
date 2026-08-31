@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.python-version
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# ML artifacts
+models/checkpoints/*
+!models/checkpoints/.gitkeep
+*.ckpt
+*.pt
+*.pth
+*.safetensors
+*.bin
+*.onnx
+wandb/
+mlruns/
+lightning_logs/
+
+# Data (keep folder structure, ignore contents)
+data/raw/*
+data/processed/*
+data/outputs/*
+!data/**/.gitkeep
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp

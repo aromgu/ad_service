@@ -1,0 +1,18 @@
+# 모델 설정 (스켈레톤 — 실제 모델 ID 확정 후 채운다).
+vlm:
+  model_id: ""            # 예: Qwen/Qwen2-VL-7B-Instruct
+  dtype: bfloat16
+  device: cuda
+  max_new_tokens: 512
+  temperature: 0.7
+
+image_generator:
+  model_id: ""            # 예: stabilityai/stable-diffusion-xl-base-1.0
+  dtype: float16
+  device: cuda
+  num_inference_steps: 30
+  guidance_scale: 7.5
+  height: 1024
+  width: 1024
+
+cache_dir: ./models/checkpoints

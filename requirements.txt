@@ -1,0 +1,13 @@
+# 런타임 최소 의존성. 상세 버전/옵션은 pyproject.toml 참고.
+# ML 스택은 requirements-ml.txt 로 분리 (도커 GPU 이미지에서 설치).
+
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+pydantic-settings>=2.2
+python-multipart>=0.0.9
+pillow>=10.2
+numpy>=1.26
+pyyaml>=6.0
+python-dotenv>=1.0
+loguru>=0.7

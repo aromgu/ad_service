@@ -1,0 +1,40 @@
+# ===== GPU 추론 이미지 =====
+# 멀티모달 VLM + 이미지 생성 모델을 로컬 GPU에서 구동할 때 사용.
+# 실행: docker run --gpus all -p 8000:8000 ad-service:gpu
+FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    APP_HOME=/app \
+    HF_HOME=/app/models/checkpoints \
+    DEVICE=cuda
+
+WORKDIR ${APP_HOME}
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3.11 python3.11-dev python3-pip \
+        build-essential git \
+        libgl1 libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/python3.11 /usr/bin/python
+
+# ----- PyTorch (CUDA 12.1 휠) -----
+RUN python -m pip install --upgrade pip \
+    && pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+
+# ----- 나머지 의존성 -----
+COPY requirements.txt requirements-ml.txt ./
+RUN pip install -r requirements.txt \
+    && grep -v '^torch' requirements-ml.txt | pip install -r /dev/stdin
+
+# ----- 소스 -----
+COPY pyproject.toml README.md ./
+COPY src ./src
+COPY configs ./configs
+RUN pip install -e . --no-deps
+
+EXPOSE 8000
+
+CMD ["uvicorn", "ad_service.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

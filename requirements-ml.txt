@@ -1,0 +1,10 @@
+# ML / 추론 스택. GPU 도커 이미지 또는 학습 환경에서 설치.
+# torch 는 CUDA 버전에 맞춰 별도 인덱스에서 설치하는 것을 권장.
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+
+torch>=2.2
+torchvision>=0.17
+transformers>=4.44
+accelerate>=0.30
+diffusers>=0.27
+sentencepiece>=0.2

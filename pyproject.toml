@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ad_service"
+version = "0.0.1"
+description = "Multimodal generative AI service (text + image in/out) built on a VLM"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "python-multipart>=0.0.9",
+    "pillow>=10.2",
+    "numpy>=1.26",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0",
+    "loguru>=0.7",
+]
+
+[project.optional-dependencies]
+ml = [
+    "torch>=2.2",
+    "torchvision>=0.17",
+    "transformers>=4.44",
+    "accelerate>=0.30",
+    "diffusers>=0.27",
+    "sentencepiece>=0.2",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "httpx>=0.27",
+    "ruff>=0.4",
+    "mypy>=1.10",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
