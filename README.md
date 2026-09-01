@@ -1,17 +1,108 @@
 # ad_service
 
-멀티모달 생성형 AI 서비스. 자연어 + 이미지를 입력받아 자연어 + 이미지를 생성한다.
+한국어 광고 문구와 원본 제품 보존형 광고 이미지를 생성하는 모델 베이스라인이다.
 
-## 개요
+- 입력: 상품명, 카테고리, 특징, 타깃, 톤, 가격·혜택, 제품 이미지
+- 출력: 광고 문구 후보 3개, 배너, 상세 페이지 시각자료, 제품 이미지
+- 원칙: 이미지 모델은 텍스트와 제품을 그리지 않고 배경만 생성한다. 실제 제품은 배경 제거 후
+  원본 픽셀을 합성하며, 한글은 Pillow 또는 서비스의 HTML/Canvas에서 렌더링한다.
+- 비교 모델: GPT-5.4 Mini/Nano, Qwen3-8B, GPT-Image-2, FLUX.2 Klein 4B
+- 서빙: FastAPI `POST /v1/generate`
 
-- **입력**: 자연어 텍스트, 이미지 (둘 중 하나 또는 둘 다)
-- **출력**: 자연어 텍스트, 이미지 (둘 중 하나 또는 둘 다)
-- **핵심 모델**: 멀티모달 Vision-Language Model (VLM) + 이미지 생성 모델
-- **서빙**: FastAPI
-- **배포**: Docker (CPU / GPU 이미지 분리)
+## 빠른 시작
 
-> 현재 상태: 디렉터리 / 파일 스캐폴딩만 구성됨. `.py` 파일은 전부 빈 파일이며 실제 구현은 아직 진행 전.
-> Docker / 설정 / CI 파일만 내용이 채워져 있다.
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+
+# API 키와 GPU 없이 전체 흐름 검증
+ad-service generate \
+  --input data/processed/eval_v1/requests/snack_001.json \
+  --copy-provider mock \
+  --image-provider mock \
+  --remover simple \
+  --output data/outputs/mock
+```
+
+### 평가 데이터 준비
+
+```bash
+ad-service prepare-data \
+  --zip /path/to/이미지.zip \
+  --output data/processed/eval_v1
+```
+
+ZIP에서 상품 7종의 `0도 단품` 이미지 한 장씩을 선택한다. 이용 조건 확인 전에는 내부 평가에만
+사용하고 Git에 포함하지 않는다.
+
+### 실제 모델 실행
+
+```bash
+# OpenAI 키는 .env에만 저장한다.
+export OPENAI_API_KEY="..."
+
+# 문구 비교: 이미지 생성은 무료 mock으로 고정
+ad-service batch --manifest data/processed/eval_v1/requests.json \
+  --copy-provider gpt-5.4-mini --image-provider mock \
+  --output data/outputs/text_gpt54mini
+
+ad-service batch --manifest data/processed/eval_v1/requests.json \
+  --copy-provider gpt-5.4-nano --image-provider mock \
+  --output data/outputs/text_gpt54nano
+
+# API 이미지 21장: 7상품 × 3규격
+ad-service batch --manifest data/processed/eval_v1/requests.json \
+  --copy-provider mock --image-provider gpt-image-2 --remover birefnet \
+  --quality medium --budget-cap 10 --output data/outputs/image_gpt2
+
+# L4 로컬 모델
+ad-service batch --manifest data/processed/eval_v1/requests.json \
+  --copy-provider qwen3-8b --image-provider mock \
+  --output data/outputs/text_qwen3
+
+ad-service batch --manifest data/processed/eval_v1/requests.json \
+  --copy-provider mock --image-provider flux2-klein-4b --remover birefnet \
+  --output data/outputs/image_flux2
+```
+
+각 출력 폴더의 `budget.json`이 누적 예상 비용을 기록한다. 다음 호출 예상 비용을 더했을 때
+`--budget-cap`을 넘으면 실행 전에 중단한다. 팀 전체 $30 한도 중 베이스라인 기본 상한은 $10이다.
+
+### 평가표
+
+```bash
+ad-service make-score-sheet \
+  --results data/outputs \
+  --output data/outputs/evaluation_scores.csv
+
+# 박창준·황인홍이 1~5점으로 작성한 뒤 집계
+ad-service aggregate-scores \
+  --scores data/outputs/evaluation_scores.csv \
+  --output data/outputs/model_summary.csv
+```
+
+제품 보존 점수 4점 미만 또는 허위 주장 결과는 자동 탈락한다. 자세한 실행 순서는
+[`docs/model_baseline.md`](docs/model_baseline.md)를 참고한다.
+
+## API
+
+```bash
+uvicorn ad_service.api.main:app --host 0.0.0.0 --port 8000
+curl http://localhost:8000/health
+curl -X POST http://localhost:8000/v1/generate \
+  -H 'Content-Type: application/json' \
+  --data @data/processed/eval_v1/requests/snack_001.json
+```
+
+공급자는 환경 변수로 선택한다.
+
+```text
+AD_COPY_PROVIDER=mock|gpt-5.4-mini|gpt-5.4-nano|qwen3-8b
+AD_IMAGE_PROVIDER=mock|gpt-image-2|flux2-klein-4b
+AD_BACKGROUND_REMOVER=simple|birefnet
+AD_BUDGET_CAP_USD=10
+```
 
 ## 디렉터리 구조
 
@@ -31,10 +122,10 @@ ad_service/
 ├── notebooks/             # 실험 노트북
 ├── scripts/               # 유틸리티 스크립트
 ├── src/ad_service/
-│   ├── api/               # FastAPI 앱 (routes, schemas)
+│   ├── api/               # FastAPI 앱과 공통 요청·응답 스키마
 │   ├── core/              # 설정, 공통 상수
-│   ├── models/            # VLM / 이미지 생성 모델 래퍼
-│   ├── pipelines/         # 전처리 + 추론 파이프라인
+│   ├── models/            # OpenAI / Qwen / FLUX 모델 래퍼
+│   ├── pipelines/         # 배경 제거, 원본 합성, 추론 파이프라인
 │   ├── data/              # 데이터셋 / 로더
 │   ├── prompts/           # 프롬프트 템플릿
 │   ├── training/          # 학습 / 파인튜닝
@@ -42,88 +133,11 @@ ad_service/
 └── tests/                 # unit / integration 테스트
 ```
 
-## 빠른 시작
+## 테스트
 
 ```bash
-# 로컬 개발 (venv)
-make install
-make run
-
-# Docker (CPU API 서버)
-docker compose -f docker/docker-compose.yml up api
-
-# Docker (GPU)
-docker build -f docker/Dockerfile.gpu -t ad-service:gpu .
+make lint
+make test
 ```
 
-## 환경 변수
-
-`.env.example`를 `.env`로 복사해서 채운다.
-
-```bash
-cp .env.example .env
-```
-
-`docker run` 시 `--env-file .env`로 주입된다.
-
----
-
-## Docker로 실험하기
-
-VM에 Docker · GPU · 공용 데이터 경로(`/home/data`)는 이미 세팅돼 있다.
-아래 명령어만 따라 하면 된다.
-
-### 1. 이미지 빌드 (최초 1회, 의존성 바뀌면 다시)
-
-```bash
-docker build -f docker/Dockerfile.gpu -t ad-service:gpu .
-```
-
-`torch`(CUDA) · `transformers` · `diffusers` · `accelerate` 와 프로젝트 소스가 들어있다.
-
-### 2. 환경 변수 파일
-
-```bash
-cp .env.example .env    # 필요한 값 채우기
-```
-
-### 3. 실험 코드 실행
-
-```bash
-# 스크립트 실행
-docker run --rm --gpus all \
-  -v "$PWD":/app -w /app \
-  -v /home/data:/data \
-  --env-file .env \
-  ad-service:gpu \
-  python scripts/train.py
-
-# 컨테이너 셸로 들어가서 작업
-docker run -it --rm --gpus all \
-  -v "$PWD":/app -w /app \
-  -v /home/data:/data \
-  --env-file .env \
-  ad-service:gpu bash
-```
-
-- `-v "$PWD":/app` — 레포 마운트. 호스트에서 코드 수정하면 컨테이너에 바로 반영.
-- `-v /home/data:/data` — 공용 데이터 경로. 컨테이너 안에서는 `/data`.
-- GPU 확인: `python -c "import torch; print(torch.cuda.is_available())"`
-
----
-
-## 공용 데이터 경로 (`/home/data`)
-
-팀원 모두가 읽고 쓸 수 있는 공유 작업 공간. 데이터셋을 각자 받아서 학습을 돌린다.
-
-```
-/home/data/
-├── <dataset_name>/   # 데이터셋 원본 (한 번 받으면 공유)
-├── hf-cache/         # Hugging Face 모델 캐시 (공용)
-└── runs/<본인_아이디>/  # 학습 산출물 / 체크포인트
-```
-
-- 데이터 · 체크포인트는 레포에 커밋하지 않는다. 전부 `/home/data` 아래에 둔다.
-- 학습 산출물은 `runs/<본인_아이디>/` 아래에 써서 서로 안 겹치게 한다.
-- 대용량 원본은 중복 다운로드 말고 `/home/data/<dataset_name>/` 를 같이 쓴다.
-- HF 캐시 공유: 컨테이너 실행 시 `-v /home/data/hf-cache:/app/models/checkpoints` 추가.
+실험용 Colab 시작점은 [`notebooks/01_baseline.ipynb`](notebooks/01_baseline.ipynb)이다.

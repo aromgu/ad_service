@@ -20,15 +20,16 @@ dependencies = [
     "pyyaml>=6.0",
     "python-dotenv>=1.0",
     "loguru>=0.7",
+    "openai>=1.100",
 ]
 
 [project.optional-dependencies]
 ml = [
     "torch>=2.2",
     "torchvision>=0.17",
-    "transformers>=4.44",
+    "transformers>=4.51",
     "accelerate>=0.30",
-    "diffusers>=0.27",
+    "diffusers>=0.35",
     "sentencepiece>=0.2",
 ]
 dev = [
@@ -39,6 +40,9 @@ dev = [
     "mypy>=1.10",
 ]
 
+[project.scripts]
+ad-service = "ad_service.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
@@ -46,6 +50,12 @@ where = ["src"]
 line-length = 100
 target-version = "py310"
 
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+
+[tool.mypy]
+ignore_missing_imports = true

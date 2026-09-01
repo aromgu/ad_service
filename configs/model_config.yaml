@@ -1,18 +1,37 @@
-# 모델 설정 (스켈레톤 — 실제 모델 ID 확정 후 채운다).
-vlm:
-  model_id: ""            # 예: Qwen/Qwen2-VL-7B-Instruct
-  dtype: bfloat16
-  device: cuda
-  max_new_tokens: 512
-  temperature: 0.7
+# 3일 베이스라인 비교 모델. 기본값은 비용이 들지 않는 mock이다.
+copy_models:
+  default: gpt-5.4-mini
+  candidates:
+    - gpt-5.4-mini
+    - gpt-5.4-nano
+    - Qwen/Qwen3-8B
+  qwen:
+    dtype: auto
+    device_map: auto
+    max_new_tokens: 900
+    enable_thinking: false
 
-image_generator:
-  model_id: ""            # 예: stabilityai/stable-diffusion-xl-base-1.0
-  dtype: float16
-  device: cuda
-  num_inference_steps: 30
-  guidance_scale: 7.5
-  height: 1024
-  width: 1024
+image_models:
+  default: gpt-image-2
+  candidates:
+    - gpt-image-2
+    - black-forest-labs/FLUX.2-klein-4B
+  gpt_image_2:
+    quality: medium
+  flux:
+    dtype: bfloat16
+    device: cuda
+    num_inference_steps: 4
+    guidance_scale: 1.0
+
+background_removal:
+  default: ZhengPeng7/BiRefNet
+  fallback: simple-border-flood-v1
+  resolution: 1024
+
+asset_sizes:
+  banner: [1536, 1024]
+  detail_visual: [1024, 1536]
+  product_image: [1024, 1024]
 
 cache_dir: ./models/checkpoints
