@@ -1,3 +1,5 @@
-from ad_service.data.dataset import prepare_aihub_eval_set
+"""데이터 로더를 위한 패키지입니다.
 
-__all__ = ["prepare_aihub_eval_set"]
+현재 베이스라인은 별도 학습 데이터셋을 구축하지 않으므로 공개 데이터 변환 도구를
+포함하지 않습니다. 검수된 데이터 사용이 결정되면 이 패키지에 로더를 추가합니다.
+"""

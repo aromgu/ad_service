@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 
 from ad_service.api.schemas.generation import GenerationRequest
-from ad_service.data.dataset import prepare_aihub_eval_set, prepare_aihub_sample_master
 from ad_service.evaluation import aggregate_scores, create_score_sheet
 from ad_service.factory import (
     create_background_remover,
@@ -51,19 +50,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ad-service")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    prepare = subparsers.add_parser("prepare-data")
-    prepare.add_argument("--zip", type=Path, required=True)
-    prepare.add_argument("--output", type=Path, default=Path("data/processed/eval_v1"))
-
-    prepare_master = subparsers.add_parser("prepare-master")
-    prepare_master.add_argument("--zip", type=Path, required=True)
-    prepare_master.add_argument(
-        "--output",
-        type=Path,
-        default=Path("data/processed/sample_product_master_v1"),
-    )
-    prepare_master.add_argument("--expected-images", type=int, default=798)
-
     generate = subparsers.add_parser("generate")
     generate.add_argument("--input", type=Path, required=True)
     _add_provider_args(generate)
@@ -90,26 +76,6 @@ def main(argv: list[str] | None = None) -> None:
     """
 
     args = build_parser().parse_args(argv)
-    if args.command == "prepare-data":
-        requests = prepare_aihub_eval_set(args.zip, args.output, Path.cwd())
-        print(
-            json.dumps(
-                {"products": len(requests), "output": str(args.output)},
-                ensure_ascii=False,
-            )
-        )
-        return
-    if args.command == "prepare-master":
-        report = prepare_aihub_sample_master(
-            args.zip,
-            args.output,
-            Path.cwd(),
-            expected_images=args.expected_images,
-        )
-        print(json.dumps(report, ensure_ascii=False, indent=2))
-        if not report["passed"]:
-            raise SystemExit(1)
-        return
     if args.command == "make-score-sheet":
         rows = create_score_sheet(args.results, args.output)
         print(json.dumps({"rows": rows, "output": str(args.output)}))
