@@ -5,6 +5,8 @@ import os
 import time
 from typing import Any
 
+from pydantic import ValidationError
+
 from ad_service.api.schemas.generation import COPY_JSON_SCHEMA, CopyResult, GenerationRequest
 from ad_service.models.base import CopyProvider, CopyProviderOutput, ProviderMetrics
 from ad_service.prompts.templates import (
@@ -35,26 +37,27 @@ class MockCopyProvider(CopyProvider):
     name = "mock-copy-v1"
 
     def generate(self, request: GenerationRequest) -> CopyProviderOutput:
-        feature = request.features[0]
-        second = request.features[1] if len(request.features) > 1 else request.category
-        offer = f" {request.offer}" if request.offer else ""
+        # Mock 모델은 API 비용 없이 파이프라인 연결을 확인하기 위한 가짜 모델입니다.
+        # 실제 광고 품질 평가에는 사용하지 않고, 입력 문장의 일부만 이용해 결과를 만듭니다.
+        description = request.text or "입력 이미지의 상품"
+        # 미리보기 문구도 실제 평가 규칙에 가깝게 짧게 제한합니다.
+        short_description = description[:12].rstrip()
+        audience = request.options.target_audience or "상품을 찾는 고객"
+        offer = f" {request.options.offer}" if request.options.offer else ""
         result = CopyResult(
-            product_summary=(
-                f"{request.product_name}은(는) {feature}을 강조한 "
-                f"{request.category} 상품입니다."
-            ),
+            product_summary=f"입력된 설명을 바탕으로 소개하는 상품입니다: {description}",
             headline_candidates=[
-                f"오늘은 {feature}",
-                f"{second}, 한 번에 즐겨요",
-                f"{request.product_name}으로 채우는 순간",
+                f"오늘 만나는 {short_description}",
+                "필요한 순간, 좋은 선택",
+                "일상에 더하는 새로운 가치",
             ],
             body_candidates=[
-                f"{feature}이 필요한 순간, {request.product_name}을 만나보세요.{offer}".strip(),
-                f"{request.target_audience}을 위한 {second} 선택입니다.",
-                f"입력 정보에 충실하게 {feature}의 매력을 전합니다.",
+                f"입력한 특징을 담은 상품을 지금 확인해보세요.{offer}".strip(),
+                f"{audience}에게 어울리는 선택입니다.",
+                "입력 정보에 충실하게 상품의 매력을 전합니다.",
             ],
             cta_candidates=["자세히 보기", "지금 만나보기", "상품 확인하기"],
-            keywords=[request.product_name, feature, second],
+            keywords=[short_description, audience, request.options.tone or "광고"],
             warnings=["모의 공급자 결과이며 실제 모델 비교 점수에는 사용하지 마세요."],
         )
         return CopyProviderOutput(value=result, metrics=ProviderMetrics(latency_ms=1))
@@ -135,23 +138,46 @@ class QwenCopyProvider(CopyProvider):
     def generate(self, request: GenerationRequest) -> CopyProviderOutput:
         self._load()
         started = time.perf_counter()
-        messages = [{"role": "user", "content": build_qwen_copy_prompt(request)}]
-        text = self._tokenizer.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True,
-            enable_thinking=False,
-        )
-        inputs = self._tokenizer([text], return_tensors="pt").to(self._model.device)
-        output_ids = self._model.generate(**inputs, max_new_tokens=900, do_sample=False)
-        generated = output_ids[0][inputs.input_ids.shape[-1] :]
-        output_text = self._tokenizer.decode(generated, skip_special_tokens=True)
-        value = CopyResult.model_validate(_extract_json(output_text))
-        return CopyProviderOutput(
-            value=value,
-            metrics=ProviderMetrics(
-                latency_ms=int((time.perf_counter() - started) * 1000),
-                input_tokens=int(inputs.input_ids.shape[-1]),
-                output_tokens=int(generated.shape[-1]),
-            ),
-        )
+        total_input_tokens = 0
+        total_output_tokens = 0
+        validation_error: ValueError | ValidationError | None = None
+
+        # 첫 출력이 JSON 또는 길이 규칙을 어기면 오류 내용을 알려주고 한 번만 다시 요청합니다.
+        # 무한 재시도를 막아 GPU 시간과 서비스 응답 시간이 예측 가능하도록 합니다.
+        for attempt in range(2):
+            prompt = build_qwen_copy_prompt(request)
+            if validation_error is not None:
+                prompt += (
+                    "\n\n이전 출력이 다음 검증을 통과하지 못했습니다:\n"
+                    f"{validation_error}\n"
+                    "사실과 글자 수를 다시 확인하고 올바른 JSON 객체만 출력하세요."
+                )
+            messages = [{"role": "user", "content": prompt}]
+            text = self._tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True,
+                enable_thinking=False,
+            )
+            inputs = self._tokenizer([text], return_tensors="pt").to(self._model.device)
+            output_ids = self._model.generate(**inputs, max_new_tokens=900, do_sample=False)
+            generated = output_ids[0][inputs.input_ids.shape[-1] :]
+            total_input_tokens += int(inputs.input_ids.shape[-1])
+            total_output_tokens += int(generated.shape[-1])
+            output_text = self._tokenizer.decode(generated, skip_special_tokens=True)
+            try:
+                value = CopyResult.model_validate(_extract_json(output_text))
+            except (ValueError, ValidationError) as exc:
+                validation_error = exc
+                continue
+            return CopyProviderOutput(
+                value=value,
+                metrics=ProviderMetrics(
+                    latency_ms=int((time.perf_counter() - started) * 1000),
+                    input_tokens=total_input_tokens,
+                    output_tokens=total_output_tokens,
+                    raw={"retry_count": attempt},
+                ),
+            )
+
+        raise RuntimeError(f"Qwen output validation failed after one retry: {validation_error}")

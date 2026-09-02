@@ -1,0 +1,26 @@
+{
+  "request_id": "copy_food_retail_001",
+  "text": "국산 딸기를 사용한 수제 딸기잼. 300g 유리병 포장이며 빵이나 요거트에 곁들이기 좋은 상품",
+  "image_path": null,
+  "outputs": ["copy"],
+  "options": {
+    "business_type": "food_retail",
+    "product_category": "packaged_food",
+    "sales_channel": "smart_store",
+    "campaign_goal": "purchase_conversion",
+    "target_audience": "간편한 아침 식사를 준비하는 20~40대",
+    "tone": "밝고 믿음직한",
+    "copy_style": "informative",
+    "copy_length": "standard",
+    "use_emoji": false,
+    "must_include": ["국산 딸기", "300g"],
+    "avoid_phrases": ["최고", "건강에 좋은"],
+    "custom_instruction": null,
+    "price": null,
+    "offer": null
+  },
+  "source": {
+    "purpose": "qwen_smoke_test",
+    "note": "실제 상품 데이터가 아닌 모델 연결 확인용 가상 사례"
+  }
+}

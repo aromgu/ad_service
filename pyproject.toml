@@ -46,6 +46,10 @@ ad-service = "ad_service.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+# wheel로 설치해도 브라우저 실험 화면 HTML이 함께 포함되도록 지정합니다.
+[tool.setuptools.package-data]
+ad_service = ["api/templates/*.html"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"

@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 from ad_service.api.schemas.generation import GenerationRequest
-from ad_service.data.dataset import prepare_aihub_eval_set
+from ad_service.data.dataset import prepare_aihub_eval_set, prepare_aihub_sample_master
 from ad_service.evaluation import aggregate_scores, create_score_sheet
 from ad_service.factory import (
     create_background_remover,
@@ -55,6 +55,15 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--zip", type=Path, required=True)
     prepare.add_argument("--output", type=Path, default=Path("data/processed/eval_v1"))
 
+    prepare_master = subparsers.add_parser("prepare-master")
+    prepare_master.add_argument("--zip", type=Path, required=True)
+    prepare_master.add_argument(
+        "--output",
+        type=Path,
+        default=Path("data/processed/sample_product_master_v1"),
+    )
+    prepare_master.add_argument("--expected-images", type=int, default=798)
+
     generate = subparsers.add_parser("generate")
     generate.add_argument("--input", type=Path, required=True)
     _add_provider_args(generate)
@@ -73,8 +82,14 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> None:
-    args = build_parser().parse_args()
+def main(argv: list[str] | None = None) -> None:
+    """명령행 인자를 읽고 선택한 작업을 실행합니다.
+
+    평소 터미널에서 실행할 때는 ``argv``를 전달하지 않습니다. 테스트에서는 인자 목록을
+    직접 넣을 수 있게 만들어 실제 명령을 실행하지 않고도 CLI 전체 흐름을 확인합니다.
+    """
+
+    args = build_parser().parse_args(argv)
     if args.command == "prepare-data":
         requests = prepare_aihub_eval_set(args.zip, args.output, Path.cwd())
         print(
@@ -83,6 +98,17 @@ def main() -> None:
                 ensure_ascii=False,
             )
         )
+        return
+    if args.command == "prepare-master":
+        report = prepare_aihub_sample_master(
+            args.zip,
+            args.output,
+            Path.cwd(),
+            expected_images=args.expected_images,
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        if not report["passed"]:
+            raise SystemExit(1)
         return
     if args.command == "make-score-sheet":
         rows = create_score_sheet(args.results, args.output)

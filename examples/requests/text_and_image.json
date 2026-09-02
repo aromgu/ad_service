@@ -1,0 +1,25 @@
+{
+  "request_id": "smoke_text_and_image",
+  "text": "제품 형태는 유지하고 따뜻한 카페 테이블 배경의 광고 이미지로 만들어줘",
+  "image_path": "data/samples/smoke_product.ppm",
+  "image_bbox": {
+    "xmin": 1,
+    "ymin": 1,
+    "xmax": 7,
+    "ymax": 7
+  },
+  "outputs": ["copy", "banner", "detail_visual"],
+  "options": {
+    "business_type": "food_retail",
+    "product_category": "snack_beverage",
+    "sales_channel": "smart_store",
+    "campaign_goal": "brand_awareness",
+    "target_audience": "차분한 분위기를 선호하는 고객",
+    "tone": "따뜻하고 차분한",
+    "price": null,
+    "offer": null
+  },
+  "source": {
+    "purpose": "smoke_test"
+  }
+}

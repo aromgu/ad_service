@@ -1,0 +1,19 @@
+{
+  "request_id": "smoke_text_only",
+  "text": "폐현수막을 재활용해 만든 가볍고 튼튼한 업사이클링 파우치",
+  "image_path": null,
+  "outputs": ["copy", "banner"],
+  "options": {
+    "business_type": "food_retail",
+    "product_category": "packaged_food",
+    "sales_channel": "smart_store",
+    "campaign_goal": "product_launch",
+    "target_audience": "환경을 생각하는 20~30대",
+    "tone": "밝고 진정성 있는",
+    "price": null,
+    "offer": null
+  },
+  "source": {
+    "purpose": "smoke_test"
+  }
+}

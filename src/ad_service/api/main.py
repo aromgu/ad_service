@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from ad_service.api.routes.demo import router as demo_router
 from ad_service.api.routes.generate import router as generation_router
 from ad_service.api.routes.health import router as health_router
 from ad_service.core.config import get_settings
@@ -14,6 +15,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(health_router)
     app.include_router(generation_router)
+    app.include_router(demo_router)
     return app
 
 
