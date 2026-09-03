@@ -32,6 +32,10 @@ def test_mock_pipeline_creates_four_required_outputs(tmp_path) -> None:
     result = pipeline.generate(request)
     assert len(result.assets) == 3
     assert len(result.copy_result.headline_candidates) == 3
+    assert result.metrics.copy_latency_ms == 1
+    assert result.metrics.copy_input_tokens == 0
+    assert result.metrics.copy_output_tokens == 0
+    assert result.metrics.copy_details == {}
     assert all(
         (tmp_path / "outputs/snack_001" / f"{asset.type.value}.png").is_file()
         for asset in result.assets

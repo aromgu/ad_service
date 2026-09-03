@@ -332,6 +332,13 @@ class RunMetrics(StrictModel):
     copy_model: str | None = None
     image_model: str | None = None
     background_remover: str | None = None
+    # 전체 실행 시간과 문구 모델 자체의 생성 시간을 분리해 비교합니다.
+    # Qwen의 모델 로딩 시간·VRAM, OpenAI의 응답 ID처럼 공급자마다 다른 값은
+    # copy_details에 그대로 기록해 실험 보고서의 근거로 사용할 수 있습니다.
+    copy_latency_ms: int | None = Field(default=None, ge=0)
+    copy_input_tokens: int = Field(default=0, ge=0)
+    copy_output_tokens: int = Field(default=0, ge=0)
+    copy_details: dict[str, Any] = Field(default_factory=dict)
 
 
 class GenerationResult(StrictModel):

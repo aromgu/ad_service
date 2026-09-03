@@ -120,11 +120,15 @@ class QwenCopyProvider(CopyProvider):
         self.model_id = model_id
         self._model: Any = None
         self._tokenizer: Any = None
+        self._load_latency_ms = 0
+        self._model_vram_mb: float | None = None
 
     def _load(self) -> None:
         if self._model is not None:
             return
+        load_started = time.perf_counter()
         try:
+            import torch
             from transformers import AutoModelForCausalLM, AutoTokenizer
         except ImportError as exc:
             raise RuntimeError("install ML dependencies with `pip install -e '.[ml]'`") from exc
@@ -134,9 +138,21 @@ class QwenCopyProvider(CopyProvider):
             torch_dtype="auto",
             device_map="auto",
         )
+        self._load_latency_ms = int((time.perf_counter() - load_started) * 1000)
+
+        # 모델을 GPU에 올린 직후 사용 중인 메모리를 기록합니다.
+        # CPU에서 실행하는 경우에는 측정할 GPU가 없으므로 None으로 둡니다.
+        if torch.cuda.is_available():
+            self._model_vram_mb = round(torch.cuda.memory_allocated() / (1024**2), 1)
 
     def generate(self, request: GenerationRequest) -> CopyProviderOutput:
         self._load()
+        import torch
+
+        # 이전 작업의 최고 메모리 기록을 지운 뒤 이번 생성에서 사용한 최대치를 측정합니다.
+        # 이미 GPU에 올라간 모델 메모리까지 포함되므로 L4에서 실행 가능한지 판단하기 쉽습니다.
+        if torch.cuda.is_available():
+            torch.cuda.reset_peak_memory_stats()
         started = time.perf_counter()
         total_input_tokens = 0
         total_output_tokens = 0
@@ -170,13 +186,21 @@ class QwenCopyProvider(CopyProvider):
             except (ValueError, ValidationError) as exc:
                 validation_error = exc
                 continue
+            peak_vram_mb = None
+            if torch.cuda.is_available():
+                peak_vram_mb = round(torch.cuda.max_memory_allocated() / (1024**2), 1)
             return CopyProviderOutput(
                 value=value,
                 metrics=ProviderMetrics(
                     latency_ms=int((time.perf_counter() - started) * 1000),
                     input_tokens=total_input_tokens,
                     output_tokens=total_output_tokens,
-                    raw={"retry_count": attempt},
+                    raw={
+                        "retry_count": attempt,
+                        "load_latency_ms": self._load_latency_ms,
+                        "model_vram_mb": self._model_vram_mb,
+                        "peak_vram_mb": peak_vram_mb,
+                    },
                 ),
             )
 

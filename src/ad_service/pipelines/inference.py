@@ -170,6 +170,12 @@ class GenerationPipeline:
                 copy_model=self.copy_provider.name if copy_output is not None else None,
                 image_model=self.image_provider.name if requested_assets else None,
                 background_remover=self.background_remover.name if cutout is not None else None,
+                # copy를 요청하지 않았다면 문구 모델 측정값도 비워 둡니다.
+                # 요청했다면 공급자가 돌려준 실제 시간·토큰·세부 측정값을 보존합니다.
+                copy_latency_ms=(copy_output.metrics.latency_ms if copy_output else None),
+                copy_input_tokens=(copy_output.metrics.input_tokens if copy_output else 0),
+                copy_output_tokens=(copy_output.metrics.output_tokens if copy_output else 0),
+                copy_details=(copy_output.metrics.raw if copy_output else {}),
             ),
             warnings=warnings,
         )
