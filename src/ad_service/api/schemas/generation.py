@@ -323,6 +323,8 @@ class GeneratedAsset(StrictModel):
     text_safe_area: SafeArea | None = None
     latency_ms: int = Field(ge=0)
     estimated_cost_usd: float = Field(ge=0)
+    # 모델 로딩 시간, VRAM처럼 이미지 공급자마다 다른 실험 측정값을 보존합니다.
+    details: dict[str, Any] = Field(default_factory=dict)
 
 
 class RunMetrics(StrictModel):

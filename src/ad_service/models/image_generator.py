@@ -107,6 +107,8 @@ class FluxImageProvider(ImageProvider):
     def __init__(self, model_id: str = name) -> None:
         self.model_id = model_id
         self._pipe: Any = None
+        self._load_latency_ms = 0
+        self._model_vram_mb = 0.0
 
     def _load(self) -> None:
         if self._pipe is not None:
@@ -116,11 +118,21 @@ class FluxImageProvider(ImageProvider):
             from diffusers import Flux2KleinPipeline
         except ImportError as exc:
             raise RuntimeError("install ML dependencies with `pip install -e '.[ml]'`") from exc
+
+        if not torch.cuda.is_available():
+            raise RuntimeError("FLUX.2 [klein] 4B requires a CUDA GPU in this project")
+
+        # 이 모델은 약 13GB VRAM을 사용합니다. 현재 실험 서버의 L4는 23GB이므로
+        # 시스템 RAM으로 모델을 옮기지 않고 GPU에 직접 올려 더 안정적으로 실행합니다.
+        load_started = time.perf_counter()
+        torch.cuda.reset_peak_memory_stats()
         self._pipe = Flux2KleinPipeline.from_pretrained(
             self.model_id,
             torch_dtype=torch.bfloat16,
+            device_map="cuda",
         )
-        self._pipe.enable_model_cpu_offload()
+        self._load_latency_ms = int((time.perf_counter() - load_started) * 1000)
+        self._model_vram_mb = round(torch.cuda.memory_allocated() / 1024**2, 1)
 
     def generate_background(
         self,
@@ -135,6 +147,8 @@ class FluxImageProvider(ImageProvider):
         self._load()
         import torch
 
+        # 모델이 GPU에 적재된 상태에서 이미지 생성 중 최고 GPU 사용량을 측정합니다.
+        torch.cuda.reset_peak_memory_stats()
         started = time.perf_counter()
         image = self._pipe(
             prompt=prompt,
@@ -146,5 +160,19 @@ class FluxImageProvider(ImageProvider):
         ).images[0]
         return ImageProviderOutput(
             image=image.convert("RGB"),
-            metrics=ProviderMetrics(latency_ms=int((time.perf_counter() - started) * 1000)),
+            metrics=ProviderMetrics(
+                latency_ms=int((time.perf_counter() - started) * 1000),
+                raw={
+                    "load_latency_ms": self._load_latency_ms,
+                    "model_vram_mb": self._model_vram_mb,
+                    "peak_generation_vram_mb": round(
+                        torch.cuda.max_memory_allocated() / 1024**2,
+                        1,
+                    ),
+                    "device": "cuda",
+                    "dtype": "bfloat16",
+                    "num_inference_steps": 4,
+                    "guidance_scale": 1.0,
+                },
+            ),
         )

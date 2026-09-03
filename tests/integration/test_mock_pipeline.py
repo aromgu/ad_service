@@ -36,6 +36,7 @@ def test_mock_pipeline_creates_four_required_outputs(tmp_path) -> None:
     assert result.metrics.copy_input_tokens == 0
     assert result.metrics.copy_output_tokens == 0
     assert result.metrics.copy_details == {}
+    assert all(asset.details == {} for asset in result.assets)
     assert all(
         (tmp_path / "outputs/snack_001" / f"{asset.type.value}.png").is_file()
         for asset in result.assets

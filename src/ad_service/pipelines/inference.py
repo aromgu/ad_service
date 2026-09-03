@@ -143,6 +143,7 @@ class GenerationPipeline:
                     text_safe_area=safe_area,
                     latency_ms=image_output.metrics.latency_ms,
                     estimated_cost_usd=image_output.metrics.estimated_cost_usd,
+                    details=image_output.metrics.raw,
                 )
             )
             self._log(
@@ -154,6 +155,7 @@ class GenerationPipeline:
                     "seed": seed,
                     "latency_ms": image_output.metrics.latency_ms,
                     "estimated_cost_usd": image_output.metrics.estimated_cost_usd,
+                    "details": image_output.metrics.raw,
                     "status": "success",
                     "path": str(final_path),
                 }
