@@ -125,14 +125,17 @@ def build_image_prompt(request: GenerationRequest, asset_type: AssetType) -> str
     else:
         common = (
             "Create a photorealistic advertising visual based only on the user description. "
-            "Do not add letters, numbers, watermark, logo, label, price, or CTA. "
+            "Do not add text, text-like marks, pseudo-letters, glyphs, numbers, watermark, "
+            "logo, label, price, or CTA. Do not visually render literal words or numbers "
+            "from the user description. "
             f"Business context: {business_context}. User description: {description}. "
             f"Mood: {tone}. "
         )
     if asset_type is AssetType.BANNER:
         return common + (
-            "Landscape composition, keep the left 45 percent visually quiet for Korean copy, "
-            "reserve the right side for the product, clean commercial lighting."
+            "Landscape composition. The left 45 percent must be a completely blank, plain "
+            "background with no objects, decorations, signs, symbols, or text-like marks. "
+            "Place the main product only on the right side. Clean commercial lighting."
         )
     if asset_type is AssetType.DETAIL_VISUAL:
         return common + (

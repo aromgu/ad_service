@@ -46,3 +46,13 @@ def test_image_prompt_contains_target_choices() -> None:
     assert "가공·포장식품" in prompt
     assert "스마트스토어" in prompt
     assert "신상품 소개" in prompt
+
+
+def test_banner_prompt_reserves_a_blank_area_without_asking_for_korean_copy() -> None:
+    """문구용 빈 공간을 요청하되 모델에 한글을 그리라는 오해를 주지 않아야 합니다."""
+
+    prompt = build_image_prompt(_targeted_request(), AssetType.BANNER)
+
+    assert "completely blank" in prompt
+    assert "text-like marks" in prompt
+    assert "for Korean copy" not in prompt
