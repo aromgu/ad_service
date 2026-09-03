@@ -1,0 +1,21 @@
+{
+  "request_id": "image_text_food_001",
+  "text": "국산 딸기로 만든 300g 수제 딸기잼이 투명한 유리병에 담긴 상품. 밝은 아침 식탁에서 빵과 요거트 옆에 놓인 깨끗하고 믿음직한 광고 장면",
+  "image_path": null,
+  "outputs": ["banner"],
+  "options": {
+    "business_type": "food_retail",
+    "product_category": "packaged_food",
+    "sales_channel": "smart_store",
+    "campaign_goal": "purchase_conversion",
+    "target_audience": "간편한 아침 식사를 준비하는 20~40대",
+    "tone": "밝고 믿음직한",
+    "price": null,
+    "offer": null
+  },
+  "source": {
+    "experiment_id": "IMAGE-TEXT-001",
+    "purpose": "텍스트만 입력한 배너 이미지 모델 비교",
+    "note": "실제 상품 데이터가 아닌 모델 비교용 가상 사례"
+  }
+}
