@@ -1,8 +1,24 @@
 # 로컬 개발용 compose.
-#   docker compose -f docker/docker-compose.yml up api          # CPU API 서버
-#   docker compose -f docker/docker-compose.yml --profile gpu up # GPU 추론 서버
+#   docker compose -f docker/docker-compose.yml up api frontend      # CPU API 및 프론트엔드 실행
+#   docker compose -f docker/docker-compose.yml --profile gpu up     # GPU 추론 서버
 #   docker compose -f docker/docker-compose.yml --profile triton up triton
+
+# 1. 프론트엔드 (Streamlit) 서비스
 services:
+  # 1. 프론트엔드 (Streamlit) 서비스
+  frontend:
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile   # <-- 이 부분을 수정
+    image: ad-service:frontend
+    ports:
+      - "8501:8501"
+    volumes:
+      - ../frontend:/app
+    environment:
+      - API_BASE_URL=http://api:8000/api/v1
+    command: streamlit run app.py --server.address=0.0.0.0 --server.port=8501
+ # 2. 백엔드 CPU API 서버
   api:
     build:
       context: ..
@@ -10,15 +26,14 @@ services:
     image: ad-service:cpu
     ports:
       - "8000:8000"
-    env_file:
-      - ../.env
     volumes:
       - ../src:/app/src
       - ../configs:/app/configs
       - ../data:/app/data
-    command: >
-      uvicorn ad_service.api.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn ad_service.api.main:app --host 0.0.0.0 --port 8000 --reload --app-dir /app/src
 
+
+  # 3. 백엔드 GPU 추론 서버
   api-gpu:
     profiles: ["gpu"]
     build:
@@ -40,8 +55,7 @@ services:
               count: all
               capabilities: [gpu]
 
-  # NVIDIA Triton Inference Server (모델 서빙 전용).
-  # ../deploy/triton/model_repository 에 모델을 배치한 뒤 사용.
+  # 4. NVIDIA Triton Inference Server (모델 서빙 전용)
   triton:
     profiles: ["triton"]
     image: nvcr.io/nvidia/tritonserver:24.05-py3
