@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+
 # 1. Pydantic 스키마 정의
 class AdRequest(BaseModel):
     store_name: str
