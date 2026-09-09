@@ -11,6 +11,7 @@ WORKDIR ${APP_HOME}
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
+        fonts-noto-cjk \
         libgl1 \
         libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*

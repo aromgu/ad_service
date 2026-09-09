@@ -91,6 +91,26 @@ class CopyLength(str, Enum):
     DETAILED = "detailed"
 
 
+class ImageInputStrategy(str, Enum):
+    """원본 상품 사진을 이미지 생성 단계에서 사용하는 방법입니다."""
+
+    # 원본에서 제품만 잘라 새 배경 위에 올립니다. 포장 보존에 유리한 기본 방식입니다.
+    COMPOSITE = "composite"
+    # 원본 사진 전체를 GPT 이미지 모델에 전달해 광고 장면으로 직접 편집합니다.
+    DIRECT_EDIT = "direct_edit"
+
+
+class ImageProcessingRoute(str, Enum):
+    """입력 검사가 끝난 뒤 실제 이미지 처리에 사용된 경로입니다."""
+
+    # 이미지가 없어서 설명만으로 전체 이미지를 생성합니다.
+    TEXT_TO_IMAGE = "text_to_image"
+    # 원본에서 제품을 추출하고 새 배경 위에 합성합니다.
+    COMPOSITE = "composite"
+    # 원본 전체를 편집 모델에 보내 완성 이미지를 받습니다.
+    DIRECT_EDIT = "direct_edit"
+
+
 class BoundingBox(StrictModel):
     xmin: int = Field(ge=0)
     ymin: int = Field(ge=0)
@@ -125,6 +145,7 @@ class GenerationOptions(StrictModel):
     custom_instruction: str | None = Field(default=None, max_length=300)
     price: str | None = Field(default=None, max_length=40)
     offer: str | None = Field(default=None, max_length=120)
+    image_input_strategy: ImageInputStrategy = ImageInputStrategy.COMPOSITE
 
     @field_validator("must_include", "avoid_phrases")
     @classmethod
@@ -237,6 +258,11 @@ class GenerationRequest(StrictModel):
             raise ValueError("outputs에는 중복 값을 사용할 수 없습니다")
         if self.image_bbox is not None and self.image_path is None:
             raise ValueError("image_bbox를 사용하려면 image_path가 필요합니다")
+        if (
+            self.options.image_input_strategy is ImageInputStrategy.DIRECT_EDIT
+            and self.image_path is None
+        ):
+            raise ValueError("direct_edit를 사용하려면 image_path가 필요합니다")
         return self
 
     @property
@@ -334,6 +360,9 @@ class RunMetrics(StrictModel):
     copy_model: str | None = None
     image_model: str | None = None
     background_remover: str | None = None
+    # 어떤 분기와 모델을 선택했는지 결과 JSON만 보고도 이해할 수 있게 기록합니다.
+    image_processing_route: ImageProcessingRoute | None = None
+    routing_reason: str | None = None
     # 전체 실행 시간과 문구 모델 자체의 생성 시간을 분리해 비교합니다.
     # Qwen의 모델 로딩 시간·VRAM, OpenAI의 응답 ID처럼 공급자마다 다른 값은
     # copy_details에 그대로 기록해 실험 보고서의 근거로 사용할 수 있습니다.

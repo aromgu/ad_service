@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     output_root: Path = Path("data/outputs/api")
     copy_provider: str = "mock"
     image_provider: str = "mock"
+    # 기본 Mock 서버는 GPU 없이 실행합니다. 실제 배포에서는 AD_BACKGROUND_REMOVER=auto로
+    # 바꾸면 박스 유무에 따라 SAM2/BiRefNet이 자동 선택됩니다.
     background_remover: str = "simple"
     image_quality: str = "medium"
     budget_cap_usd: float = Field(default=10.0, gt=0, le=30)

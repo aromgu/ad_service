@@ -10,6 +10,7 @@ from ad_service.api.schemas.generation import (
     CopyResult,
     CopyStyle,
     GenerationRequest,
+    ImageInputStrategy,
     InputMode,
     OutputType,
     ProductCategory,
@@ -54,6 +55,28 @@ def test_text_and_image_request_is_allowed() -> None:
     )
 
     assert request.input_mode is InputMode.TEXT_AND_IMAGE
+
+
+def test_direct_edit_requires_and_keeps_image_input() -> None:
+    """직접 편집 방식은 원본 이미지가 있을 때만 선택할 수 있어야 합니다."""
+
+    request = GenerationRequest(
+        request_id="direct_edit_001",
+        text="상품은 유지하고 스튜디오 배경으로 바꿔줘",
+        image_path="data/sample.jpg",
+        outputs=[OutputType.PRODUCT_IMAGE],
+        options={"image_input_strategy": "direct_edit"},
+    )
+
+    assert request.options.image_input_strategy is ImageInputStrategy.DIRECT_EDIT
+
+    with pytest.raises(ValidationError):
+        GenerationRequest(
+            request_id="direct_edit_without_image",
+            text="스튜디오 광고 이미지",
+            outputs=[OutputType.PRODUCT_IMAGE],
+            options={"image_input_strategy": "direct_edit"},
+        )
 
 
 def test_food_retail_target_options_are_allowed() -> None:

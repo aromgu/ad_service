@@ -39,7 +39,14 @@ def _add_provider_args(parser: argparse.ArgumentParser) -> None:
         default="mock",
         choices=["mock", "gpt-image-2", "flux2-klein-4b"],
     )
-    parser.add_argument("--remover", default="simple", choices=["simple", "birefnet"])
+    parser.add_argument(
+        "--remover",
+        # 기본 Mock 스모크 테스트는 GPU 없이 돌아가야 하므로 simple을 유지합니다.
+        # 실제 모델 실행에서는 --remover auto를 지정해 자동 라우팅을 켭니다.
+        default="simple",
+        choices=["auto", "simple", "birefnet", "sam2"],
+        help="auto는 선택 박스가 있으면 SAM2, 없으면 BiRefNet을 사용합니다.",
+    )
     parser.add_argument("--quality", default="medium", choices=["low", "medium", "high"])
     parser.add_argument("--budget-cap", type=float, default=10.0)
     parser.add_argument("--seed", type=int, default=0)

@@ -74,14 +74,25 @@ ad-service generate --input examples/requests/copy_food_retail.json \
   --output data/outputs/text_qwen3
 
 # 이미지 모델은 텍스트와 이미지 입력 예제로 각각 실행
+# 실제 모델에서는 --remover auto로 image_bbox 유무에 따른 자동 선택을 사용
 ad-service generate --input examples/requests/text_and_image.json \
-  --copy-provider mock --image-provider gpt-image-2 --remover birefnet \
+  --copy-provider mock --image-provider gpt-image-2 --remover auto \
   --quality medium --budget-cap 10 --output data/outputs/image_gpt2
 
 ad-service generate --input examples/requests/text_and_image.json \
-  --copy-provider mock --image-provider flux2-klein-4b --remover birefnet \
+  --copy-provider mock --image-provider flux2-klein-4b --remover auto \
   --output data/outputs/image_flux2
+
+# 여러 상품이 붙어 있는 사진은 image_bbox를 지정하고 SAM2로 목표 상품 하나를 분리
+ad-service generate --input examples/requests/image_only.json \
+  --copy-provider mock --image-provider mock --remover sam2 \
+  --output data/outputs/sam2_cutout
 ```
+
+실제 실행에서 `--remover auto`를 선택하면 입력 JSON에 `image_bbox`가 있을 때 SAM2,
+없을 때 BiRefNet을 사용한다. GPU가 필요 없는 Mock 스모크 테스트의 기본 제거기는
+`simple`이다. 직접 지정한 `--remover sam2`도 박스 좌표가 필수다. `direct_edit`은 포장
+글자와 로고가 바뀔 수 있어 자동 선택하지 않고 요청 JSON에서 명시했을 때만 사용한다.
 
 각 출력 폴더의 `budget.json`이 누적 예상 비용을 기록한다. 다음 호출 예상 비용을 더했을 때
 `--budget-cap`을 넘으면 실행 전에 중단한다. 팀 전체 $30 한도 중 베이스라인 기본 상한은 $10이다.
@@ -136,7 +147,7 @@ curl -X POST http://localhost:8000/v1/generate \
 ```text
 AD_COPY_PROVIDER=mock|gpt-5.4-mini|gpt-5.4-nano|qwen3-8b
 AD_IMAGE_PROVIDER=mock|gpt-image-2|flux2-klein-4b
-AD_BACKGROUND_REMOVER=simple|birefnet
+AD_BACKGROUND_REMOVER=auto|simple|birefnet|sam2
 AD_BUDGET_CAP_USD=10
 ```
 

@@ -30,7 +30,15 @@ def _font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
     ]
     selected = next((path for path in bold_candidates if bold and Path(path).exists()), regular)
-    return ImageFont.truetype(selected or "DejaVuSans.ttf", size)
+    if selected is not None:
+        return ImageFont.truetype(selected, size)
+
+    # 개발 환경에 한글 글꼴이 빠져 있어도 전체 생성 작업이 중단되지는 않게 합니다.
+    # 배포 Docker에는 fonts-noto-cjk를 설치하므로 실제 한글 미리보기는 Noto Sans를 씁니다.
+    try:
+        return ImageFont.truetype("DejaVuSans.ttf", size)
+    except OSError:
+        return ImageFont.load_default(size=size)
 
 
 def _fit_product(cutout: Image.Image, max_width: int, max_height: int) -> Image.Image:
@@ -84,17 +92,45 @@ def _wrap(
     font: ImageFont.FreeTypeFont,
     max_width: int,
 ) -> list[str]:
+    """광고 문구를 단어 경계에 맞춰 여러 줄로 나눕니다.
+
+    한국어도 띄어쓰기 단위로 먼저 배치해야 ``스 / 틱과자``처럼 한 단어가 어색하게
+    갈라지지 않습니다. 단어 하나가 영역보다 긴 예외에만 글자 단위 분리를 사용합니다.
+    """
+
     lines: list[str] = []
     current = ""
-    for char in text:
-        candidate = current + char
-        if current and draw.textbbox((0, 0), candidate, font=font)[2] > max_width:
-            lines.append(current.rstrip())
-            current = char.lstrip()
-        else:
+
+    def width(value: str) -> int:
+        box = draw.textbbox((0, 0), value, font=font)
+        return box[2] - box[0]
+
+    for word in text.split():
+        candidate = f"{current} {word}".strip()
+        if not current or width(candidate) <= max_width:
             current = candidate
+            continue
+
+        lines.append(current)
+        current = ""
+
+        # 정상적인 광고 문구는 여기까지 오지 않습니다. URL처럼 공백이 없는 긴 문자열도
+        # 영역 밖으로 넘치지 않도록 이 경우에만 글자 단위로 안전하게 나눕니다.
+        if width(word) > max_width:
+            chunk = ""
+            for char in word:
+                candidate = chunk + char
+                if chunk and width(candidate) > max_width:
+                    lines.append(chunk)
+                    chunk = char
+                else:
+                    chunk = candidate
+            current = chunk
+        else:
+            current = word
+
     if current:
-        lines.append(current.rstrip())
+        lines.append(current)
     return lines
 
 

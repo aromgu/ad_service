@@ -5,6 +5,7 @@ import io
 import os
 import random
 import time
+from pathlib import Path
 from typing import Any, Literal
 
 from PIL import Image, ImageDraw
@@ -21,6 +22,7 @@ GPT_IMAGE_2_PRICES = {
 
 class MockImageProvider(ImageProvider):
     name = "mock-image-v1"
+    supports_reference_edit = True
 
     def generate_background(
         self,
@@ -46,8 +48,32 @@ class MockImageProvider(ImageProvider):
             )
         return ImageProviderOutput(image=image, metrics=ProviderMetrics(latency_ms=1))
 
+    def edit_reference_image(
+        self,
+        request: GenerationRequest,
+        image_path: Path,
+        asset_type: str,
+        width: int,
+        height: int,
+        prompt: str,
+        seed: int,
+    ) -> ImageProviderOutput:
+        """API 비용 없이 직접 편집 경로가 연결됐는지만 확인하는 모의 구현입니다."""
+
+        del request, asset_type, prompt, seed
+        image = Image.open(image_path).convert("RGB").resize((width, height))
+        return ImageProviderOutput(
+            image=image,
+            metrics=ProviderMetrics(
+                latency_ms=1,
+                raw={"input_strategy": "direct_edit", "mock": True},
+            ),
+        )
+
 
 class OpenAIImageProvider(ImageProvider):
+    supports_reference_edit = True
+
     def __init__(
         self,
         model: str = "gpt-image-2",
@@ -97,6 +123,64 @@ class OpenAIImageProvider(ImageProvider):
             metrics=ProviderMetrics(
                 latency_ms=int((time.perf_counter() - started) * 1000),
                 estimated_cost_usd=cost,
+            ),
+        )
+
+    def edit_reference_image(
+        self,
+        request: GenerationRequest,
+        image_path: Path,
+        asset_type: str,
+        width: int,
+        height: int,
+        prompt: str,
+        seed: int,
+    ) -> ImageProviderOutput:
+        """원본 상품 사진을 GPT 이미지 편집 API에 직접 전달합니다.
+
+        이 방식은 배경 제거와 합성을 거치지 않으므로 경계가 자연스러울 수 있습니다.
+        다만 생성형 편집이므로 포장 글자나 로고가 달라질 수 있어 결과 검수가 필요합니다.
+        """
+
+        del request, asset_type, seed
+        try:
+            from openai import OpenAI
+        except ImportError as exc:
+            raise RuntimeError("install runtime dependencies with `pip install -e .`") from exc
+
+        started = time.perf_counter()
+        # 파일 객체를 열어 전달하면 SDK가 이미지 형식과 파일명을 함께 전송합니다.
+        with image_path.open("rb") as image_file:
+            response = OpenAI(api_key=self.api_key).images.edit(
+                model=self.model,
+                image=image_file,
+                prompt=prompt,
+                size=f"{width}x{height}",
+                quality=self.quality,
+                background="opaque",
+            )
+        data = response.data or []
+        if not data:
+            raise RuntimeError("OpenAI image edit response did not include image data")
+        encoded = data[0].b64_json
+        if not encoded:
+            raise RuntimeError("OpenAI image edit response did not include b64_json")
+
+        image = Image.open(io.BytesIO(base64.b64decode(encoded))).convert("RGB")
+        size_key = f"{width}x{height}"
+        cost = GPT_IMAGE_2_PRICES.get(self.quality, {}).get(size_key, 0.0)
+        return ImageProviderOutput(
+            image=image,
+            metrics=ProviderMetrics(
+                latency_ms=int((time.perf_counter() - started) * 1000),
+                estimated_cost_usd=cost,
+                raw={
+                    "input_strategy": "direct_edit",
+                    "reference_image": str(image_path),
+                    # 현재 비용표는 출력 이미지 비용 기준입니다. 참조 이미지 입력 비용은
+                    # OpenAI 사용량 화면에서 최종 확인해야 합니다.
+                    "cost_note": "output image estimate; verify input-image cost in API usage",
+                },
             ),
         )
 

@@ -25,7 +25,10 @@ image_models:
     guidance_scale: 1.0
 
 background_removal:
-  default: ZhengPeng7/BiRefNet
+  default: auto
+  auto_rule:
+    with_bbox: facebook/sam2.1-hiera-small
+    without_bbox: ZhengPeng7/BiRefNet
   fallback: simple-border-flood-v1
   resolution: 1024
 

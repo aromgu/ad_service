@@ -8,3 +8,10 @@ transformers>=4.51
 accelerate>=0.30
 diffusers>=0.35
 sentencepiece>=0.2
+
+# BiRefNet 배경 제거 모델이 내부적으로 사용하는 필수 라이브러리입니다.
+# 이 세 패키지가 없으면 모델 파일을 받아도 추론을 시작할 수 없습니다.
+einops>=0.8
+# 현재 CUDA 이미지의 PyTorch 2.5.1과 import 테스트를 통과한 버전으로 고정합니다.
+kornia==0.7.4
+timm>=1.0

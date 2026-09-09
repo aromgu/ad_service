@@ -146,3 +146,35 @@ def build_image_prompt(request: GenerationRequest, asset_type: AssetType) -> str
         "Square studio product-photo background, centered pedestal or surface, "
         "balanced soft shadow and uncluttered composition."
     )
+
+
+def build_reference_edit_prompt(request: GenerationRequest, asset_type: AssetType) -> str:
+    """원본 상품을 GPT 이미지 모델이 직접 편집할 때 사용하는 지시문입니다."""
+
+    description = request.text or "Create a clean commercial setting for the supplied product."
+    tone = request.options.tone or "clean, trustworthy, modern"
+    business_context = build_business_context(request)
+    common = (
+        "Edit the supplied reference image into a photorealistic advertising product photo. "
+        "Keep the main product exactly recognizable: preserve its package shape, proportions, "
+        "colors, logo, brand name, printed text, and label layout. Do not redesign, replace, "
+        "duplicate, crop, or hide the main product. Change only the surrounding background and "
+        "integrate the product with realistic commercial lighting and a natural contact shadow. "
+        "Do not add any new text, pseudo-letters, numbers, logos, labels, prices, CTA, "
+        "or watermark. "
+        f"Business context: {business_context}. User description: {description}. Mood: {tone}. "
+    )
+    if asset_type is AssetType.BANNER:
+        return common + (
+            "Landscape composition. Place the product on the right and keep the left 45 percent "
+            "plain and empty for later copy placement."
+        )
+    if asset_type is AssetType.DETAIL_VISUAL:
+        return common + (
+            "Portrait ecommerce detail-page hero with the product centered and quiet areas above "
+            "and below for later copy placement."
+        )
+    return common + (
+        "Square studio product photo. Center the original product on a clean surface with an "
+        "uncluttered composition."
+    )

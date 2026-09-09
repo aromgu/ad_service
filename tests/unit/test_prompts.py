@@ -1,5 +1,9 @@
 from ad_service.api.schemas.generation import AssetType, GenerationRequest, OutputType
-from ad_service.prompts.templates import build_copy_prompt, build_image_prompt
+from ad_service.prompts.templates import (
+    build_copy_prompt,
+    build_image_prompt,
+    build_reference_edit_prompt,
+)
 
 
 def _targeted_request() -> GenerationRequest:
@@ -56,3 +60,15 @@ def test_banner_prompt_reserves_a_blank_area_without_asking_for_korean_copy() ->
     assert "completely blank" in prompt
     assert "text-like marks" in prompt
     assert "for Korean copy" not in prompt
+
+
+def test_reference_edit_prompt_prioritizes_product_identity() -> None:
+    """직접 편집 지시문은 새 배경보다 먼저 상품 포장 보존을 분명히 요구해야 합니다."""
+
+    request = _targeted_request().model_copy(update={"image_path": "data/product.jpg"})
+    prompt = build_reference_edit_prompt(request, AssetType.PRODUCT_IMAGE)
+
+    assert "preserve its package shape" in prompt
+    assert "printed text" in prompt
+    assert "Do not redesign" in prompt
+    assert "Do not add any new text" in prompt

@@ -10,7 +10,9 @@ from ad_service.models.image_generator import (
 )
 from ad_service.models.vlm import MockCopyProvider, OpenAICopyProvider, QwenCopyProvider
 from ad_service.pipelines.preprocessing import (
+    AutoBackgroundRemover,
     BiRefNetBackgroundRemover,
+    Sam2BackgroundRemover,
     SimpleBackgroundRemover,
 )
 
@@ -42,8 +44,10 @@ def create_image_provider(name: str, quality: str = "medium") -> ImageProvider:
 
 def create_background_remover(name: str) -> BackgroundRemover:
     providers = {
+        "auto": AutoBackgroundRemover,
         "simple": SimpleBackgroundRemover,
         "birefnet": BiRefNetBackgroundRemover,
+        "sam2": Sam2BackgroundRemover,
     }
     if name not in providers:
         raise ValueError(f"unknown background remover: {name}")
