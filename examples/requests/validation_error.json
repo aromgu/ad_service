@@ -1,0 +1,6 @@
+{
+  "outputs": ["copy"],
+  "options": {
+    "store_name": "테스트 상점"
+  }
+}

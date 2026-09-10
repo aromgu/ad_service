@@ -1,7 +1,10 @@
-# API 명세서 (v0.2 draft)
+# API 명세서 (v0.3 draft)
 
 > 상태: **초안 / 팀 검토 대기.** 이 문서가 프론트엔드·모델·백엔드가 맞춰야 할 단일 계약(single source of truth)이다.
-> D1~D11 결정은 서버/API 담당이 잠정 확정했고, D5·D9·D11 은 프론트(thlee)·모델(cjpark) 검토 후 최종 확정한다.
+> D1~D11 결정은 서버/API 담당이 확정했다. D5·D9·D11 은 프론트(thlee)·모델(cjpark) 이 코드에 반영하며 확인한다.
+>
+> **구현 상태**: 이 명세대로 동작하는 FastAPI 골격(mock 파이프라인)이 별도 PR 로 올라가 있다.
+> 엔드포인트·스키마·비동기 job·에러 엔벨로프 전부 동작하며, 실제 모델만 `MockPipeline` 자리에 끼우면 된다.
 
 작성: 서버/API 담당 · 최초 2026-09-10
 
@@ -71,7 +74,7 @@
 | `GET` | `/health` | 헬스체크 (배포·모니터링용, prefix 없음) |
 | `POST` | `/api/v1/generate` | 광고 생성 **작업 접수** → `202` + `request_id` |
 | `GET` | `/api/v1/jobs/{request_id}` | 작업 상태·결과 조회 (프론트가 폴링) |
-| `GET` | `/api/v1/assets/{asset_id}` | 생성된 이미지 파일 반환 |
+| `GET` | `/api/v1/assets/{request_id}/{filename}` | 생성된 이미지 파일 반환 |
 
 ---
 
@@ -254,14 +257,14 @@
 
 ---
 
-## 6. `GET /api/v1/assets/{asset_id}`
+## 6. `GET /api/v1/assets/{request_id}/{filename}`
 
 job 결과의 `assets[].url` 이 가리키는 이미지 파일을 반환.
 
 - 200: `image/png` (또는 jpg/webp) 바이너리
 - 404: 존재하지 않는 asset
-- `asset_id` 는 `^[a-zA-Z0-9_-]+\.(png|jpg|webp)$` 만 허용 (경로 탈출 방지)
-- 저장 위치: `data/outputs/api/{request_id}/...` (설정 `AD_OUTPUT_ROOT`) — 서버 디스크 (D8). 추후 GCS.
+- `request_id` 는 `^[a-zA-Z0-9_-]{1,80}$`, `filename` 은 `^[a-zA-Z0-9_-]+\.(png|jpg|jpeg|webp)$` 만 허용 (경로 탈출 방지)
+- 저장 위치: `data/outputs/api/{request_id}/{filename}` (설정 `AD_OUTPUT_ROOT`) — 서버 디스크 (D8). 추후 GCS.
 
 ---
 
@@ -343,3 +346,4 @@ Streamlit 은 `st.spinner` + 위 폴링 루프로 처리. (SSE/WebSocket 은 MVP
 |---|---|---|
 | v0.1 | 2026-09-10 | 초안. 3갈래 계약 통합안, 결정 안건 D1~D11 도출 |
 | v0.2 | 2026-09-10 | D1~D11 잠정 확정 반영. 비동기 처리(`jobs/{id}` 폴링) 로 구조 변경, `options.store_name` 추가, 프론트 호출 흐름 재작성 |
+| v0.3 | 2026-09-10 | FastAPI 골격 구현과 함께 정리. 자산 URL 을 `/assets/{request_id}/{filename}` 2세그먼트로 확정 |
