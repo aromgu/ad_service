@@ -16,8 +16,12 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     environment: str = "development"
 
-    # CORS 허용 오리진. 콤마로 구분. 기본은 개발용으로 전체 허용.
-    cors_allow_origins: list[str] = Field(default_factory=lambda: ["*"])
+    # CORS 허용 오리진. 콤마로 구분한 문자열. 기본은 개발용으로 전체 허용("*").
+    cors_allow_origins: str = "*"
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [o.strip() for o in self.cors_allow_origins.split(",") if o.strip()]
 
     # 생성 결과(이미지)가 저장되고 /assets 로 서빙되는 루트.
     output_root: Path = Path("data/outputs/api")

@@ -107,7 +107,8 @@ async def submit_generation(
     await store.create(request_id)
 
     output_dir = settings.output_root / request_id
-    asyncio.create_task(
+    tasks: set[asyncio.Task] = request.app.state.background_tasks
+    task = asyncio.create_task(
         run_job(
             store=store,
             pipeline=pipeline,
@@ -117,6 +118,9 @@ async def submit_generation(
             asset_url_prefix=f"{_ASSET_URL_PREFIX}/{request_id}",
         )
     )
+    # 태스크가 GC 되지 않도록 참조를 잡아둔다.
+    tasks.add(task)
+    task.add_done_callback(tasks.discard)
 
     poll_url = f"/api/v1/jobs/{request_id}"
     response.headers["Location"] = poll_url
