@@ -9,7 +9,12 @@ import { TopNav } from "@/components/TopNav";
 import { Field, RequiredMark, Select, TextArea, TextInput } from "@/components/ui/Field";
 import { ApiError, api } from "@/lib/api";
 import { assetUrl } from "@/lib/env";
-import type { ProductDraft, ProductDraftPatch, ProductOption } from "@/lib/types";
+import type {
+  CategoryCandidate,
+  ProductDraft,
+  ProductDraftPatch,
+  ProductOption,
+} from "@/lib/types";
 
 const SAVE_DEBOUNCE_MS = 700;
 
@@ -138,7 +143,12 @@ export default function ProductDraftPage() {
           {registered ? (
             <RegisteredBanner draft={draft} onEdit={() => setForceEdit(true)} />
           ) : (
-            <AnalysisBanner draft={draft} saveState={saveState} />
+            <>
+              {typeof draft.analysis.register_error === "string" && (
+                <RegisterErrorBanner reason={draft.analysis.register_error} />
+              )}
+              <AnalysisBanner draft={draft} saveState={saveState} />
+            </>
           )}
 
           {/* 상세페이지 미리보기 */}
@@ -255,7 +265,12 @@ export default function ProductDraftPage() {
             </Card>
           </div>
 
-          <CategoryCard draft={draft} disabled={registered} onSelect={(c) => patch({ selected_category: c })} />
+          <CategoryCard
+            draft={draft}
+            disabled={registered}
+            // 경로만 저장하면 등록할 수 없다 — 네이버 카테고리 ID 를 함께 저장한다.
+            onSelect={(c) => patch({ selected_category: c.path, selected_category_id: c.id })}
+          />
 
           {/* 가격 · 배송 */}
           <Card className="gap-4">
@@ -366,6 +381,26 @@ function AnalysisBanner({
   );
 }
 
+/** 자동 등록이 실패했을 때 이유를 알려 준다 — 여기서 고쳐 다시 등록할 수 있다. */
+function RegisterErrorBanner({ reason }: { reason: string }) {
+  return (
+    <div
+      role="alert"
+      className="flex items-start gap-3 rounded-xl border border-danger/50 bg-[#2a1a1e] px-[22px] py-[18px]"
+    >
+      <span className="mt-0.5 flex size-[26px] flex-none items-center justify-center rounded-full border border-[#5A3038] bg-[#2A1A1E] text-danger">
+        !
+      </span>
+      <div className="flex flex-col gap-[3px]">
+        <span className="text-[15px] font-bold text-fg">자동 등록에 실패했어요</span>
+        <span className="text-[12.5px] leading-[1.6] text-muted">
+          {reason} — 아래에서 고친 뒤 다시 등록해 주세요.
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function RegisteredBanner({ draft, onEdit }: { draft: ProductDraft; onEdit: () => void }) {
   const when = draft.registered_at
     ? new Date(draft.registered_at).toLocaleString("ko-KR")
@@ -377,8 +412,11 @@ function RegisteredBanner({ draft, onEdit }: { draft: ProductDraft; onEdit: () =
           <Check className="size-3.5" strokeWidth={3} />
         </span>
         <div className="flex flex-col gap-[3px]">
-          <span className="text-[15px] font-bold text-fg">상품이 등록되었습니다</span>
-          <span className="text-[12.5px] text-muted">{when} · 등록 후에도 내용을 고칠 수 있어요</span>
+          <span className="text-[15px] font-bold text-fg">네이버 스마트스토어에 등록되었습니다</span>
+          <span className="text-[12.5px] text-muted">
+            {when}
+            {draft.naver_origin_product_no && ` · 상품번호 ${draft.naver_origin_product_no}`}
+          </span>
         </div>
       </div>
       <button
@@ -479,29 +517,32 @@ function CategoryCard({
 }: {
   draft: ProductDraft;
   disabled: boolean;
-  onSelect: (c: string) => void;
+  onSelect: (c: CategoryCandidate) => void;
 }) {
   const [query, setQuery] = useState("");
-  const [hits, setHits] = useState<string[]>([]);
+  const [hits, setHits] = useState<CategoryCandidate[]>([]);
   const [searching, setSearching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const search = async () => {
     if (!query.trim()) return;
     setSearching(true);
+    setError(null);
     try {
-      setHits(await api.searchCategories(query.trim()));
-    } catch {
+      const found = await api.searchCategories(query.trim());
+      setHits(found);
+      if (found.length === 0) setError("검색 결과가 없습니다. 다른 말로 찾아보세요.");
+    } catch (err) {
       setHits([]);
+      setError(err instanceof ApiError ? err.message : "카테고리를 불러오지 못했습니다.");
     } finally {
       setSearching(false);
     }
   };
 
-  const rows = [
+  const rows: CategoryCandidate[] = [
     ...draft.category_candidates,
-    ...hits
-      .filter((h) => !draft.category_candidates.some((c) => c.path === h))
-      .map((h) => ({ path: h, confidence: 0 })),
+    ...hits.filter((h) => !draft.category_candidates.some((c) => c.id === h.id)),
   ];
 
   return (
@@ -509,14 +550,19 @@ function CategoryCard({
       <span className="text-[13px] font-bold text-fg">
         카테고리 <AiBadge />
       </span>
+      {rows.length === 0 && (
+        <p className="m-0 rounded-[10px] border border-line border-dashed px-4 py-3.5 text-[12.5px] text-dim">
+          아래에서 카테고리를 검색해 골라 주세요. 네이버 등록에 반드시 필요합니다.
+        </p>
+      )}
       {rows.map((c) => {
-        const on = c.path === draft.selected_category;
+        const on = c.id ? c.id === draft.selected_category_id : c.path === draft.selected_category;
         return (
           <button
-            key={c.path}
+            key={c.id || c.path}
             type="button"
             disabled={disabled}
-            onClick={() => onSelect(c.path)}
+            onClick={() => onSelect(c)}
             className={`flex items-center gap-3 rounded-[10px] border px-4 py-3.5 text-left transition-ui disabled:cursor-not-allowed ${
               on ? "border-accent-line bg-accent-bg" : "border-line bg-inset hover:border-line-soft"
             }`}
@@ -561,6 +607,9 @@ function CategoryCard({
             {searching ? "검색 중…" : "검색"}
           </button>
         </div>
+      )}
+      {error && (
+        <span className="text-[12px] text-danger">{error}</span>
       )}
     </Card>
   );

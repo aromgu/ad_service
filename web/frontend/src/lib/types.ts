@@ -140,6 +140,8 @@ export interface WorkspaceItem {
 
 // ---------- 상품등록 (4c) ----------
 export interface CategoryCandidate {
+  /** 네이버 leafCategoryId. 등록에 반드시 필요하다. */
+  id: string;
   path: string;
   confidence: number;
 }
@@ -161,7 +163,13 @@ export interface ProductDraft {
   status: "draft" | "registered";
   /** 내 작업 카드에 보이는 이름. 상품명(product_name)과 별개다. */
   title: string;
-  analysis: { image_count?: number; ocr_chars?: number; source?: string };
+  analysis: {
+    image_count?: number;
+    ocr_chars?: number;
+    source?: string;
+    /** 자동 등록이 실패했을 때의 사유 */
+    register_error?: string;
+  };
   description: string;
   image_urls: string[];
   representative_image_url: string | null;
@@ -172,6 +180,10 @@ export interface ProductDraft {
   seller_code: string;
   category_candidates: CategoryCandidate[];
   selected_category: string;
+  selected_category_id: string;
+  /** 등록 성공 시 네이버가 준 번호 */
+  naver_origin_product_no: string;
+  naver_channel_product_no: string;
   price: number | null;
   discount_rate: number;
   shipping_fee: number;
@@ -197,6 +209,7 @@ export type ProductDraftPatch = Partial<
     | "manufacturer"
     | "seller_code"
     | "selected_category"
+    | "selected_category_id"
     | "price"
     | "discount_rate"
     | "shipping_fee"

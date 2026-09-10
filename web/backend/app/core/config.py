@@ -25,6 +25,17 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./data/app.db"
     upload_dir: str = "./uploads"
 
+    # ===== 네이버 커머스 API =====
+    # 호스트는 공통 규격 문서 기준. 경로는 /external/... 로 시작한다.
+    naver_api_base: str = "https://api.commerce.naver.com/external"
+    naver_client_id: str = ""
+    naver_client_secret: str = ""
+    # SELF — 내 스토어 / SELLER — 대행. SELLER 일 때만 account_id 를 보낸다.
+    naver_account_type: str = "SELF"
+    naver_account_id: str = ""
+    # false 면 실제 등록 대신 페이로드 검증까지만 한다 (연습용).
+    naver_register_live: bool = True
+
     generation_provider: str = "mock"
     remote_generation_url: str = "http://localhost:8100"
     mock_duration_seconds: float = 12.0

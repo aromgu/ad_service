@@ -67,24 +67,29 @@ def test_product_review_flow(client, png_bytes):
     draft = client.get(f"/api/product-drafts/{job['product_draft_id']}").json()
     assert draft["status"] == "draft", "review 모드는 자동 등록되면 안 된다"
     assert draft["product_name"]
-    assert len(draft["category_candidates"]) == 3
+    # 카테고리 후보는 네이버 API 에서 온다. 테스트에선 API 를 끄므로 비어 있고,
+    # 사용자가 검토 화면에서 직접 검색해 고르는 흐름이 된다.
+    assert draft["category_candidates"] == []
+    assert draft["selected_category_id"] == ""
     assert draft["tags"] and draft["attributes"]["주요소재"] == "캔버스"
     # 직접 입력한 정보가 AI 분석보다 우선 적용된다
     assert "구성품 본체 1개" in draft["product_name"] or "구성품 본체 1개" in draft["description"]
 
-    # 판매가 없이 등록하면 막힌다
+    # 카테고리·판매가 없이 등록하면 막힌다
     r = client.post(f"/api/product-drafts/{draft['id']}/register")
-    assert r.status_code == 400 and "판매가" in r.json()["detail"]
+    assert r.status_code == 400
+    assert "카테고리" in r.json()["detail"] and "판매가" in r.json()["detail"]
 
-    # 검토 화면에서 수정
+    # 검토 화면에서 수정 — 카테고리는 네이버 ID 까지 함께 저장해야 한다
     patched = client.patch(f"/api/product-drafts/{draft['id']}", json={
         "price": 19900, "discount_rate": 10,
         "selected_category": "패션잡화 › 남성가방 › 에코백",
+        "selected_category_id": "50015341",
         "options": [{"name": "화이트", "price": 0, "stock": 10}],
         "tags": ["에코백", "캔버스백"],
     }).json()
     assert patched["price"] == 19900
-    assert patched["selected_category"] == "패션잡화 › 남성가방 › 에코백"
+    assert patched["selected_category_id"] == "50015341"
     assert len(patched["options"]) == 1
 
     registered = client.post(f"/api/product-drafts/{draft['id']}/register").json()
@@ -92,8 +97,12 @@ def test_product_review_flow(client, png_bytes):
     assert registered["registered_at"]
 
 
-def test_product_auto_flow_skips_review(client, png_bytes):
-    """'AI가 알아서 등록하기' — 분석이 끝나면 4c 없이 바로 등록된다."""
+def test_product_auto_flow_records_reason_when_naver_unavailable(client, png_bytes):
+    """'AI가 알아서 등록하기' — 네이버 등록까지 시도한다.
+
+    테스트에선 네이버를 꺼 두므로 등록에 실패하고, 작업을 실패시키는 대신
+    초안을 남기고 사유를 적어 사용자가 검토 화면에서 고칠 수 있게 한다.
+    """
     ids = _upload(client, png_bytes, 1)
     job = _wait(client, client.post("/api/jobs", json={
         "type": "product_reg",
@@ -101,10 +110,11 @@ def test_product_auto_flow_skips_review(client, png_bytes):
         "image_ids": ids,
     }).json()["id"])
 
+    assert job["status"] == "done", "등록 실패가 생성 작업을 실패시키면 안 된다"
     assert job["submit_mode"] == "auto"
     draft = client.get(f"/api/product-drafts/{job['product_draft_id']}").json()
-    assert draft["status"] == "registered"
-    assert draft["registered_at"]
+    assert draft["status"] == "draft"
+    assert "카테고리" in draft["analysis"]["register_error"]
 
 
 def test_product_from_detail_page(client, png_bytes, sample_form):
@@ -123,8 +133,7 @@ def test_product_from_detail_page(client, png_bytes, sample_form):
     }).json()["id"])
 
     draft = client.get(f"/api/product-drafts/{job['product_draft_id']}").json()
-    assert draft["image_urls"] == [doc_image_url]
-    assert draft["status"] == "registered"
+    assert draft["image_urls"] == [doc_image_url], "상세페이지 이미지를 그대로 이어받아야 한다"
 
 
 def test_product_from_unknown_document(client):
@@ -151,10 +160,11 @@ def test_shipping_settings_roundtrip(client):
 
 
 # ---------------- 카테고리 검색 ----------------
-def test_category_search(client):
-    hits = client.get("/api/product-drafts/categories/search?q=에코백").json()
-    assert hits and all("에코백" in h for h in hits)
-    assert client.get("/api/product-drafts/categories/search?q=없는카테고리").json() == []
+def test_category_search_needs_naver_keys(client):
+    """카테고리는 네이버 실제 카테고리를 쓴다. 키가 없으면 조용히 비우지 않고 알린다."""
+    r = client.get("/api/product-drafts/categories/search?q=에코백")
+    assert r.status_code == 503
+    assert "NAVER_CLIENT_ID" in r.json()["detail"]
 
 
 # ---------------- 내 작업 목록에 세 타입이 다 뜬다 ----------------

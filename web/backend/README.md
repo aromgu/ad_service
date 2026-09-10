@@ -93,5 +93,8 @@ app/
 - 스키마 마이그레이션 도구(Alembic)를 아직 안 붙였다. 기동 시 `create_all` 로 테이블만 만든다.
   모델을 바꾸면 `data/app.db` 를 지우고 다시 만드는 게 지금은 가장 빠르다.
 - `ALLOW_DEMO_USER=true` 는 개발 편의용이다. 운영에서는 반드시 `false`.
+- **`NAVER_REGISTER_LIVE=true` 면 "네이버에 상품 등록"이 진짜 스토어에 상품을 만든다.**
+  브라우저 자동 테스트를 돌리기 전에는 `false` 로 바꿀 것. 실수로 올라간 상품은
+  `DELETE /v2/products/origin-products/{no}` 로 지울 수 있다.
 - 사용자에게 보여줄 한국어 문구에 조사를 붙일 때는 `app/core/korean.py` 의 `eul_reul` 등을 쓴다.
   `f"{x}을(를)"` 같은 표기를 새로 만들지 말 것.

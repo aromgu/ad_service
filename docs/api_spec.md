@@ -1,352 +1,449 @@
-# API 명세서 (v0.3 draft)
+# API 명세서 (v1.0) — 백엔드 ↔ AI 모델
 
-> 상태: **초안 / 팀 검토 대기.** 이 문서가 프론트엔드·모델·백엔드가 맞춰야 할 단일 계약(single source of truth)이다.
-> D1~D11 결정은 서버/API 담당이 확정했다. D5·D9·D11 은 프론트(thlee)·모델(cjpark) 이 코드에 반영하며 확인한다.
->
-> **구현 상태**: 이 명세대로 동작하는 FastAPI 골격(mock 파이프라인)이 별도 PR 로 올라가 있다.
-> 엔드포인트·스키마·비동기 job·에러 엔벨로프 전부 동작하며, 실제 모델만 `MockPipeline` 자리에 끼우면 된다.
+## 0. 이 문서의 범위
 
-작성: 서버/API 담당 · 최초 2026-09-10
+**백엔드(`web/backend`)가 모델 서버(`src/ad_service`)를 호출하는 계약**만 다룬다.
 
----
 
-## 0. 배경 — 계약이 3갈래로 갈라져 있었음
+- 엔드포인트 목록: <http://localhost:8000/docs> (FastAPI 자동 생성)
+- 요청·응답 타입: `web/backend/app/schemas/common.py`
+- 프론트 호출부: `web/frontend/src/lib/api.ts`
 
-| 위치 | 요청 형식 | 응답 형식 |
-|---|---|---|
-| `frontend/app.py` (thlee) | `store_name, business_type, target_audience, keywords, tone_manner` | `ad_text, image_url` |
-| `backend/routers/ad.py` (thlee) | `category, product_name` | `status, message, generated_copy` |
-| `src/ad_service/api/` (cjpark, `cjpark-model-baseline`) | `GenerationRequest` (request_id, text, image_path, outputs[], options{}) | `GenerationResult` (copy, assets[], metrics) |
+### v0.3 에서 무엇이 바뀌었나
 
-**통합 방향**: cjpark 의 `GenerationRequest` / `GenerationResult` 스키마를 뼈대로 채택.
-웹 서비스에 필요한 부분(이미지 드래그앤드롭 업로드, 결과 이미지 URL, request_id 서버 생성, **비동기 처리**)을 추가.
-`backend/` 독립 FastAPI 앱은 `src/ad_service/api/` 로 흡수 (D11).
+v0.3 은 `copy` / `banner` 를 만드는 서비스를 전제로 쓰였다. 그 뒤 제품이
+**스마트한 스미스 씨**(상세페이지 · 블로그 · 상품등록)로 확정되고 화면이 전부
+구현되면서 입·출력이 달라졌다. 비동기 폴링 구조와 에러 형식은 v0.3 그대로 쓰고,
+**작업 종류와 페이로드만 다시 정의한다.**
 
 ---
 
-## 1. 공통 규약
+## 1. 모델 4개
 
-| 항목 | 값 |
-|---|---|
-| Base URL (개발) | `http://localhost:8000` / 컨테이너 내부 `http://api:8000` |
-| API prefix | `/api/v1` (D1) |
-| 콘텐츠 타입 | 요청/응답 `application/json`, 이미지 포함 요청은 `multipart/form-data` |
-| 문자셋 | UTF-8 |
-| 인증 | MVP 없음. 배포 시 재검토 (D6) |
-| 처리 방식 | **비동기** — 생성 요청은 즉시 접수(202)하고 결과는 폴링으로 조회 (D2) |
-| 자동 문서 | `GET /docs` (Swagger UI), `GET /openapi.json` |
+| # | 모델 | `task` | 역할 |
+| --- | --- | --- | --- |
+| M1 | 상세페이지 생성 | `detail_page` | 상품 사진 + 폼 입력 → 상세페이지 문서 + 연출 이미지 |
+| M2 | 상세페이지 수정 챗봇 | `document_edit` | 문서 + 사용자 요청 → 수정된 문서 |
+| M3 | 블로그 작성 | `blog` | 사진 + 주제 → 블로그 초안 문서 |
+| M4 | 상품등록 정보 추출 | `product_extract` | 상세페이지 이미지 → 네이버 등록용 필드 |
 
-### 공통 에러 응답
+M2 는 M1·M3 결과물을 **공통으로** 고친다. 문서 구조가 같아서 모델을 나눌 이유가 없다.
 
-모든 4xx / 5xx 는 아래 형태로 통일한다.
+---
+
+## 2. 확정 사항 — 애매했던 두 가지
+
+### D-A. 상세페이지는 **HTML 이 아니라 JSON 블록**으로 준다
+
+모델은 `sections` 배열(JSON)을 돌려주고, **HTML 이 필요한 곳에서 백엔드가 렌더링**한다.
+
+이유:
+
+1. **에디터가 블록 단위로 동작한다.** 블록을 클릭해 글자 크기·굵기·정렬·색을 바꾸고
+   삭제하고 이미지를 교체한다(프레임 2d). HTML 문자열을 받으면 이걸 하려고
+   DOM 을 파싱해 되돌려야 한다.
+2. **챗봇이 특정 블록만 고친다.** "히어로 문구 짧게" → `headline` 블록만 교체.
+   HTML 이면 어디를 고쳐야 할지 다시 찾아야 한다.
+3. **HTML 이 필요한 곳이 여러 개고 형식이 다 다르다.** 네이버 `detailContent`,
+   HTML 내려받기, PNG 내보내기. JSON 하나에서 각각 렌더링하는 편이 안전하다.
+4. **LLM 이 만든 HTML 은 예측이 안 된다.** 인라인 스타일·깨진 태그·스크립트가
+   섞여 들어오고, 그대로 렌더링하면 XSS 위험이 있다. JSON 은 스키마로 검증된다.
+
+> **모델은 HTML 을 만들지 않는다.** `detailContent` HTML 은 백엔드의 렌더러가
+> `sections` 에서 생성한다 (`web/backend/app/naver/service.py`).
+
+### D-B. 상품등록 모델은 **네이버 값을 직접 만들지 않는다**
+
+상품등록은 네이버 검증이 까다롭다 — 카테고리 ID, 원산지 코드, 고시 항목, 태그 제한.
+**모델이 이걸 지어내면 등록이 실패한다.** 그래서 역할을 이렇게 나눈다.
+
+| | 모델이 하는 것 | 백엔드가 하는 것 |
+| --- | --- | --- |
+| 카테고리 | `category_query`: 검색어 배열 (예: `["세럼","에센스"]`) | 네이버 카테고리 API 로 `leafCategoryId` 확정 |
+| 원산지 | 건드리지 않음 | 코드 `"00"`(국산) 고정 |
+| 고시 항목 | 건드리지 않음 | 상품군 정의를 조회해 채움 |
+| 이미지 | 건드리지 않음 | 네이버 이미지 API 로 업로드 후 URL 사용 |
+| 상품명·브랜드·옵션·태그·속성 | **만든다** | 길이·형식만 검증 |
+
+**모델이 절대 만들면 안 되는 값:** `leafCategoryId`, `originAreaCode`,
+`productInfoProvidedNotice`, 네이버 이미지 URL, 택배사 코드.
+숫자 ID 를 지어내면 400 으로 등록이 거절된다.
+
+출력은 **고정 스키마 + enum** 으로 받는다. 자유 문자열은 검증 가능한 곳에만 둔다.
+구현은 OpenAI `response_format: json_schema` 같은 **구조화 출력(structured output)**
+기능을 쓴다 — 프롬프트로 "JSON 으로 주세요"라고 부탁하는 방식은 쓰지 않는다.
+
+---
+
+## 3. 공통 규약
+
+### 3.1 전송
+
+- Base URL: `http://{모델서버}/api/v1` (기본 `http://localhost:8100/api/v1`)
+- `Content-Type: application/json`, UTF-8
+- 이미지가 있으면 `multipart/form-data`
+  - `payload` 파트 — 아래 JSON 을 문자열로
+  - `images` 파트 — 파일 여러 개 (jpg/png/webp, 각 10MB 이하)
+
+### 3.2 비동기 폴링 (v0.3 유지)
+
+```
+POST /api/v1/generate      → 202 {request_id, poll_url}
+GET  /api/v1/jobs/{id}     → 진행률·결과
+GET  /api/v1/assets/{id}/{filename}   → 생성된 이미지 파일
+```
+
+백엔드가 **0.6초 간격**으로 폴링한다. 화면(2b·3b·4b)의 진행률 원과 스텝
+체크리스트가 이 응답을 그대로 그린다.
+
+**접수 응답 (202)**
 
 ```json
-{
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "사람이 읽을 수 있는 설명",
-    "details": [
-      { "field": "options.copy_style", "issue": "custom 선택 시 custom_instruction 필요" }
-    ]
-  }
-}
+{ "request_id": "a1b2c3d4", "status": "pending", "poll_url": "/api/v1/jobs/a1b2c3d4" }
 ```
 
-| HTTP | code | 상황 |
-|---|---|---|
-| 400 | `BAD_REQUEST` | JSON 파싱 불가, multipart 형식 오류 |
-| 404 | `NOT_FOUND` | 존재하지 않는 asset / request_id |
-| 413 | `PAYLOAD_TOO_LARGE` | 이미지 용량 초과 (기본 10MB) |
-| 422 | `VALIDATION_ERROR` | 스키마 검증 실패 (필드 조합 오류 포함) |
-| 429 | `BUDGET_EXCEEDED` | 요청 비용이 예산 캡 초과 |
-| 500 | `INTERNAL_ERROR` | 처리되지 않은 서버 오류 |
-| 503 | `MODEL_UNAVAILABLE` | 추론 백엔드(모델 / Triton) 응답 불가 |
+**진행 중**
 
-> 비동기 처리이므로, **생성 자체의 실패**(모델 오류 등)는 위 HTTP 에러가 아니라
-> job 상태 `failed` + `error` 객체로 전달된다 (섹션 5 참조).
-
----
-
-## 2. 엔드포인트 목록
-
-| 메서드 | 경로 | 용도 |
-|---|---|---|
-| `GET` | `/health` | 헬스체크 (배포·모니터링용, prefix 없음) |
-| `GET` | `/metrics` | Prometheus 메트릭 (`docs/monitoring.md`) |
-| `POST` | `/api/v1/generate` | 광고 생성 **작업 접수** → `202` + `request_id` |
-| `GET` | `/api/v1/jobs/{request_id}` | 작업 상태·결과 조회 (프론트가 폴링) |
-| `GET` | `/api/v1/assets/{request_id}/{filename}` | 생성된 이미지 파일 반환 |
-
----
-
-## 3. `GET /health`
-
-배포 스크립트와 compose healthcheck 가 사용. 인증 없음, prefix 없음.
-
-**200 OK**
-```json
-{ "status": "ok", "service": "ad_service", "version": "0.1.0" }
-```
-
----
-
-## 4. `POST /api/v1/generate` — 작업 접수
-
-요청을 받아 **큐에 넣고 즉시 202 를 반환**한다. 실제 생성은 백그라운드에서 진행.
-
-### 4.1 요청
-
-- 이미지 없음: `Content-Type: application/json`, 본문은 아래 JSON.
-- 이미지 있음 (드래그앤드롭): `Content-Type: multipart/form-data`
-  - 파트 `payload` — 아래 JSON 을 문자열로
-  - 파트 `image` — 이미지 파일 (jpg / png / webp, ≤ 10MB)
-
-```jsonc
-{
-  // 없으면 서버가 생성해서 응답에 담아 돌려준다 (D7). 재시도 시 같은 값 재사용 권장.
-  "request_id": "a1b2c3d4",
-
-  // 제품/상황 설명. outputs 에 "copy" 가 있으면 필수. 최대 2000자 (D10).
-  "text": "국산 딸기로 만든 300g 수제 딸기잼. 유리병 포장.",
-
-  // 생성할 결과 종류. 1~4개, 중복 불가.
-  // MVP 는 "copy", "banner" 만 실제 지원. "detail_visual", "product_image" 는 후속 (D5).
-  "outputs": ["copy", "banner"],
-
-  "options": {
-    "store_name": "OO 카페",                          // 신규 (D4). 매장 상호명
-    "business_type": "food_retail",                   // 현재 MVP 고정
-    "product_category": "packaged_food",              // packaged_food | snack_beverage | side_dish_meal
-    "sales_channel": "smart_store",                   // smart_store | social_media | delivery_app | offline_store
-    "campaign_goal": "purchase_conversion",           // product_launch | promotion | brand_awareness | purchase_conversion
-    "target_audience": "간편한 아침 식사를 준비하는 20~40대",
-    "tone": "밝고 믿음직한",
-    "copy_style": "informative",                      // emotional | informative | conversion | friendly | premium | custom
-    "copy_length": "standard",                        // short | standard | detailed
-    "use_emoji": false,
-    "must_include": ["국산 딸기", "300g"],            // 최대 5개, 각 60자 이하
-    "avoid_phrases": ["최고", "건강에 좋은"],          // 최대 10개
-    "custom_instruction": null,                       // copy_style == "custom" 이면 필수
-    "price": null,
-    "offer": null
-  },
-
-  // 자유 메타데이터. 서버는 저장만 하고 해석하지 않음.
-  "source": { "channel": "web" }
-}
-```
-
-#### 필드 규칙
-
-| 필드 | 타입 | 필수 | 비고 |
-|---|---|---|---|
-| `request_id` | string `^[a-zA-Z0-9_-]{1,80}$` | X | 생략 시 서버 생성 (D7) |
-| `text` | string ≤ 2000자 | 조건부 | `outputs` 에 `copy` 포함 시 필수. 공백만 있으면 없는 것으로 처리 |
-| `image` (multipart) | 파일 | X | jpg / png / webp, ≤ 10MB |
-| `outputs` | `["copy"｜"banner"｜"detail_visual"｜"product_image"]` | O | 1~4개, 중복 불가 |
-| `options.*` | 위 예시 참조 | X | 전부 기본값 있음 |
-
-#### 검증 규칙 (422 발생 조건)
-
-- `text` 와 `image` 가 둘 다 없음
-- `outputs` 에 `copy` 가 있는데 `text` 없음
-- `options.copy_style == "custom"` 인데 `custom_instruction` 없음
-- `must_include` 와 `avoid_phrases` 에 같은 표현
-- `outputs` 중복
-
-### 4.2 응답
-
-**202 Accepted**
 ```json
 {
   "request_id": "a1b2c3d4",
-  "status": "pending",
-  "poll_url": "/api/v1/jobs/a1b2c3d4"
+  "status": "running",
+  "progress": 42,
+  "step": "copy",
+  "steps": [
+    { "key": "analyze", "label": "상품 정보 분석", "state": "done" },
+    { "key": "copy",    "label": "카피 문구 작성", "state": "active" },
+    { "key": "layout",  "label": "레이아웃 구성",  "state": "pending" },
+    { "key": "images",  "label": "이미지 배치",    "state": "pending" }
+  ]
 }
 ```
 
-검증 실패 시에는 202 가 아니라 **422** + 공통 에러 응답.
+- `progress` — 0~100 정수
+- `state` — `done` | `active` | `pending`
+- 스텝 `key`·`label` 은 **모델 서버가 정한다.** 백엔드는 그대로 그린다.
 
----
+**완료** — `status: "succeeded"` + `result` (작업별로 아래 4~7절)
 
-## 5. `GET /api/v1/jobs/{request_id}` — 상태·결과 조회
+**실패**
 
-프론트엔드가 접수 후 **2초 간격으로 폴링**한다. 작업 결과는 완료 후 24시간 보관.
-
-### 진행 중
-
-**200 OK**
-```json
-{ "request_id": "a1b2c3d4", "status": "processing", "progress": 0.4 }
-```
-
-`status`: `pending`(큐 대기) → `processing`(생성 중) → `done` / `failed`.
-`progress` 는 0.0~1.0, 대략치 (없으면 생략 가능).
-
-### 완료
-
-**200 OK**
-```jsonc
-{
-  "request_id": "a1b2c3d4",
-  "status": "done",
-  "result": {
-    "mode": "text_only",                     // text_only | image_only | text_and_image
-
-    // outputs 에 "copy" 가 있을 때만 존재
-    "copy": {
-      "product_summary": "국산 딸기를 담은 수제 딸기잼 300g",
-      "headline_candidates": ["아침이 달라지는 국산 딸기잼", "...", "..."],  // 3개, 각 ≤ 25자
-      "body_candidates": ["...", "...", "..."],                             // 3개, 각 ≤ 90자
-      "cta_candidates": ["구매하기", "담기", "더보기"],                      // 3개, 각 ≤ 8자
-      "keywords": ["국산 딸기", "수제잼", "300g"],
-      "warnings": []
-    },
-
-    // 이미지 outputs 마다 1개
-    "assets": [
-      {
-        "type": "banner",                    // banner | detail_visual | product_image
-        "url": "/api/v1/assets/a1b2c3d4_banner.png",
-        "width": 1536,
-        "height": 1024,
-        "model": "gpt-image-2",
-        "seed": 12345,                       // 없을 수 있음 (null)
-        "text_safe_area": { "x": 80, "y": 80, "width": 1376, "height": 300 },
-        "latency_ms": 4200,
-        "estimated_cost_usd": 0.02
-      }
-    ],
-
-    "metrics": {
-      "latency_ms": 8100,
-      "estimated_cost_usd": 0.023,
-      "copy_model": "gpt-5.4-mini",
-      "image_model": "gpt-image-2"
-    },
-
-    "warnings": [],
-    "errors": []
-  }
-}
-```
-
-- `copy` 는 `outputs` 에 `copy` 없으면 생략.
-- `assets` 는 이미지 outputs 없으면 `[]`.
-- 일부 output 만 실패하면 나머지는 그대로 주고 실패분은 `result.errors` 에 기록 (부분 성공 허용).
-
-### 실패
-
-**200 OK** (HTTP 자체는 성공, 작업이 실패한 것)
 ```json
 {
   "request_id": "a1b2c3d4",
   "status": "failed",
-  "error": { "code": "MODEL_UNAVAILABLE", "message": "이미지 모델 응답 없음 (timeout 120s)" }
+  "error": { "code": "MODEL_TIMEOUT", "message": "이미지 생성이 응답하지 않았습니다." }
 }
 ```
 
-### 없는 request_id
+### 3.3 에러
 
-**404** + `{ "error": { "code": "NOT_FOUND", "message": "..." } }`
-(보관 기간 24시간 지난 것도 404)
+| code | 뜻 | 백엔드 처리 |
+| --- | --- | --- |
+| `INVALID_INPUT` | 입력이 규격에 안 맞음 | 사용자에게 그대로 보여줌 |
+| `MODEL_TIMEOUT` | 모델 응답 없음 | 작업 실패 → 내 작업의 실패 카드 |
+| `MODEL_REFUSED` | 모델이 생성을 거절 | 사유를 사용자에게 보여줌 |
+| `RATE_LIMITED` | 호출량 초과 | 지수 백오프 후 재시도 |
+| `INTERNAL` | 그 외 | 작업 실패 |
 
-### 구현 메모
+`message` 는 **사용자에게 그대로 보여줄 한국어 문장**으로 쓴다. 스택트레이스나
+영어 예외 문자열을 넣지 않는다.
 
-- 작업 상태 저장: MVP 는 서버 프로세스 메모리(dict). API 인스턴스 2개 이상 뜨면 Redis 로 교체.
-- 백그라운드 실행: FastAPI `BackgroundTasks` 또는 `asyncio` 큐. 무거워지면 워커 분리(Celery/RQ).
+### 3.4 시간 제한
 
----
+| 작업 | 목표 | 상한 |
+| --- | --- | --- |
+| `detail_page` | 40초 | 3분 |
+| `document_edit` | 10초 | 60초 |
+| `blog` | 30초 | 2분 |
+| `product_extract` | 60초 | 3분 |
 
-## 6. `GET /api/v1/assets/{request_id}/{filename}`
+상한을 넘기면 모델 서버가 `MODEL_TIMEOUT` 으로 끝낸다.
 
-job 결과의 `assets[].url` 이 가리키는 이미지 파일을 반환.
+### 3.5 생성된 이미지
 
-- 200: `image/png` (또는 jpg/webp) 바이너리
-- 404: 존재하지 않는 asset
-- `request_id` 는 `^[a-zA-Z0-9_-]{1,80}$`, `filename` 은 `^[a-zA-Z0-9_-]+\.(png|jpg|jpeg|webp)$` 만 허용 (경로 탈출 방지)
-- 저장 위치: `data/outputs/api/{request_id}/{filename}` (설정 `AD_OUTPUT_ROOT`) — 서버 디스크 (D8). 추후 GCS.
+모델이 만든 이미지는 **파일로 저장하고 URL 로 준다.** base64 로 JSON 에 넣지 않는다
+(문서가 수 MB 로 불어난다).
 
----
-
-## 7. 프론트엔드 필드 매핑 (thlee `frontend/app.py` 수정 필요)
-
-### 요청 매핑
-
-| 현재 프론트 필드 | 새 스펙 위치 | 변환 |
-|---|---|---|
-| `store_name` "OO 카페" | `options.store_name` | 그대로 |
-| `business_type` "카페/디저트" | `options.business_type` + `options.product_category` | 한글 라벨 → enum 매핑표 필요 (D9) |
-| `target_audience` | `options.target_audience` | 그대로 |
-| `keywords` "수제 디저트, 분위기 좋은" | `options.must_include` | 쉼표 split → 배열 |
-| `tone_manner` "친근하고 재치 있는" | `options.tone` + `options.copy_style` | 라벨 → enum 매핑 (D9) |
-| (신규) | `text` | 제품 설명 입력란 추가. copy 생성에 필수 |
-| (신규) | `outputs` | 결과 종류 선택 (기본 `["copy","banner"]`) |
-| (드래그앤드롭) | multipart `image` 파트 | 파일 있으면 multipart, 없으면 순수 JSON |
-
-### 호출 흐름 변경 (동기 → 비동기)
-
-```python
-# 1) 접수
-res = requests.post("http://api:8000/api/v1/generate", json=payload)  # 또는 files=
-request_id = res.json()["request_id"]
-
-# 2) 폴링 (2초 간격)
-while True:
-    job = requests.get(f"http://api:8000/api/v1/jobs/{request_id}").json()
-    if job["status"] in ("done", "failed"):
-        break
-    time.sleep(2)
-
-# 3) 결과 사용
-if job["status"] == "done":
-    r = job["result"]
-    headline = r["copy"]["headline_candidates"][0]
-    img_url = "http://localhost:8000" + r["assets"][0]["url"]   # 브라우저에서 로드
+```
+GET /api/v1/assets/{request_id}/{filename}
 ```
 
-Streamlit 은 `st.spinner` + 위 폴링 루프로 처리. (SSE/WebSocket 은 MVP 범위 밖)
+백엔드가 이 URL 을 내려받아 자기 저장소로 옮긴다. 모델 서버는 **24시간**만 보관하면 된다.
 
 ---
 
-## 8. 확정된 결정 (D1~D11)
+## 4. 공통 타입 — 문서 블록 (`Section`)
 
-| # | 안건 | 결정 | 검토자 |
-|---|---|---|---|
-| D1 | API prefix | **`/api/v1` 로 통일** (cjpark `/v1` → 변경) | 확정 |
-| D2 | 동기 vs 비동기 | **비동기.** `generate` 202 접수 + `jobs/{id}` 폴링 | 확정 |
-| D3 | 이미지 입력 방식 | **드래그앤드롭 → `generate` 에 multipart 단일 요청.** 별도 업로드 엔드포인트 없음 | 확정 |
-| D4 | 매장 정보 필드 | `options.store_name` 신규 추가 | 확정 |
-| D5 | MVP 지원 `outputs` | **`copy`, `banner` 우선.** `detail_visual`, `product_image` 후속 | cjpark 검토 |
-| D6 | 인증 | MVP 없음. 배포 시 재검토 | 확정 |
-| D7 | `request_id` 생성 | 클라이언트가 주면 사용, 없으면 **서버 생성** | 확정 |
-| D8 | asset 저장소 | **로컬 디스크** + API 서빙. 추후 GCS | 확정 |
-| D9 | 한글 라벨 → enum 매핑표 | **thlee 초안 → API 담당 확정** | thlee |
-| D10 | `text` 최대 길이 | **2000자** (`app_config.yaml` 도 2000 으로 맞춤) | 확정 |
-| D11 | `backend/` 폐기 | **완료.** `backend/` 삭제, `src/ad_service/api/` 로 단일화 | 확정 |
+M1·M2·M3 의 결과물은 모두 이 배열이다. 현재 구현: `web/backend/app/schemas/common.py`
+
+```jsonc
+{
+  "id": "a1b2c3d4e5f6",     // 12자 hex. 블록마다 고유. 수정 시 그대로 유지한다.
+  "type": "headline",
+  "visible": true,
+  "content": { }             // type 마다 다름 (아래)
+}
+```
+
+| `type` | `content` | 쓰이는 곳 |
+| --- | --- | --- |
+| `eyebrow` | `{ text, letterSpacing? }` | 상세페이지·블로그 머리말 |
+| `headline` | `{ lines: string[], fontSize?, bold?, italic?, align?, color? }` | 제목. **줄바꿈은 배열 원소로** |
+| `stat` | `{ prefix, value, suffix }` | "수분 보유력 **+38%** · 4주 임상" |
+| `subclaim` | `{ text, fontSize?, ... }` | 보조 설명 |
+| `heading` | `{ text, fontSize? }` | 블로그 소제목 |
+| `paragraph` | `{ text }` | 블로그 본문 문단 |
+| `image` | `{ url, alt, height?, caption? }` | 이미지 블록 |
+| `note` | `{ text }` | "— 핵심 성분 섹션 이어짐 —" 같은 안내 |
+
+규칙:
+
+- `headline.lines` 는 **줄 단위 배열**이다. `"a\nb"` 로 주지 않는다.
+- `image.url` 은 `GET /assets/...` 경로이거나, 입력으로 받은 원본 이미지 URL 이다.
+- 모르는 `type` 이 오면 백엔드가 **그 블록만 건너뛴다** (문서 전체를 버리지 않는다).
 
 ---
 
-## 9. 예시 요청 모음
+## 5. M1 — 상세페이지 생성 (`detail_page`)
 
-`examples/requests/` 에 실제 JSON 파일로 관리 (cjpark 브랜치에 시작됨).
-프론트·백·모델이 모두 이 파일들로 테스트한다.
+### 요청
 
-| 파일 | 시나리오 |
-|---|---|
-| `copy_only.json` | 텍스트만 → 문구만 |
-| `copy_and_banner.json` | 텍스트만 → 문구 + 배너 |
-| `image_text.json` | 텍스트 + 상품 사진 → 배너 |
-| `validation_error.json` | 일부러 422 나는 요청 (테스트용) |
+```jsonc
+{
+  "task": "detail_page",
+  "request_id": "a1b2c3d4",
+  "input": {
+    "product_name": "시카마누 바이옴 세럼",
+    "target": "20-30대 여성",
+    "language": "자동",              // 자동 | 한국어 | English | 日本語 | 中文
+    "tone": "감성적",                 // 감성적 | 정보 중심
+    "length": "숏(10장 내외)",        // 숏(10장 내외) | 미들(15장 내외) | 롱(20장 이상)
+    "features": "피부 톤 개선, 보습 효과, 저자극 성분",
+    "image_count": 2                 // multipart 로 함께 보낸 사진 장수 (1~5)
+  }
+}
+```
+
+### 응답 `result`
+
+```jsonc
+{
+  "title": "시카마누 바이옴 세럼 상세페이지",   // 참고용. 카드 제목은 백엔드가 번호로 붙인다
+  "sections": [ /* 4절 Section 배열 */ ],
+  "thumbnail_url": "/api/v1/assets/a1b2c3d4/hero.png",
+  "messages": [                                  // 에디터 좌측 채팅에 처음 뿌릴 대화
+    { "role": "user",      "content": "…", "meta": {} },
+    { "role": "assistant", "content": "…", "meta": {
+        "summaryCard": [ { "label": "채널", "value": "스마트스토어" } ],
+        "closing": "수정할 부분을 알려주세요.",
+        "footer": "6개 블록 생성됨"
+    }}
+  ]
+}
+```
+
+- `sections` 는 **1개 이상**. 첫 블록은 `eyebrow` 또는 `headline` 을 권장한다.
+- 사진 연출컷(gpt image 2)을 만들면 `image` 블록의 `url` 에 넣는다.
+- `messages` 가 비어 있어도 된다. 그러면 에디터 채팅이 빈 상태로 시작한다.
 
 ---
 
-## 10. 변경 이력
+## 6. M2 — 상세페이지 수정 챗봇 (`document_edit`)
+
+M1·M3 결과를 **공통으로** 고친다.
+
+### 요청
+
+```jsonc
+{
+  "task": "document_edit",
+  "request_id": "a1b2c3d4",
+  "input": {
+    "document_type": "detail_page",       // detail_page | blog
+    "sections": [ /* 현재 문서 전체 */ ],
+    "message": "히어로 문구를 조금 더 짧게 줄여줘.",
+    "history": [                           // 최근 대화 (최대 20턴). 없으면 빈 배열
+      { "role": "user", "content": "…" },
+      { "role": "assistant", "content": "…" }
+    ],
+    "attached_image_count": 0              // 사용자가 채팅에 올린 사진 장수
+  }
+}
+```
+
+### 응답 `result`
+
+```jsonc
+{
+  "reply": "헤드라인을 2줄로 줄이고 임상 수치를 앞으로 당겼어요.",
+  "sections": [ /* 수정된 문서 전체 */ ],
+  "meta": { "footer": "1개 블록 수정됨" }
+}
+```
+
+규칙:
+
+- **문서 전체를 돌려준다.** 부분 패치(diff)는 쓰지 않는다 — 블록 순서·삭제까지
+  표현하려면 전체가 단순하고 안전하다.
+- **고치지 않은 블록은 `id` 를 그대로 유지한다.** 에디터가 선택 상태를 잃지 않는다.
+- 요청을 수행할 수 없으면 `sections` 를 **입력 그대로** 돌려주고 `reply` 로 이유를 설명한다.
+  빈 배열이나 `null` 을 주지 않는다.
+
+---
+
+## 7. M3 — 블로그 작성 (`blog`)
+
+### 요청
+
+```jsonc
+{
+  "task": "blog",
+  "request_id": "a1b2c3d4",
+  "input": {
+    "topic": "캠핑용 접이식 미니 테이블",
+    "style": "기본 블로그",          // 기본 블로그 | 체험단 리뷰 | 정보성 포스트 | 제품 비교
+    "extra_request": "3040 주부 대상, 캠핑 초보 관점으로",
+    "image_count": 3                 // 1~8
+  }
+}
+```
+
+### 응답 `result`
+
+M1 과 같은 형식(`title` · `sections` · `thumbnail_url` · `messages`). 다만:
+
+- `heading` + `paragraph` 블록을 주로 쓴다.
+- 사진은 본문 흐름에 맞춰 `image` 블록으로 끼워 넣는다.
+- 요약 카드(`meta.summaryCard`)의 **글자 수는 실제 본문에서 센 값**을 넣는다.
+  에디터 상단 바가 같은 값을 따로 계산하므로 다르면 사용자가 혼란스럽다.
+
+---
+
+## 8. M4 — 상품등록 정보 추출 (`product_extract`)
+
+**가장 규격이 빡빡한 모델이다.** D-B 를 반드시 지켜야 한다.
+
+### 구현 방식
+
+별도 모델을 학습하지 않는다. **VLM + 구조화 출력**으로 푼다:
+
+1. 상세페이지 이미지들을 VLM 에 넣어 OCR + 시각 정보를 읽는다
+2. 아래 JSON 스키마를 `response_format` 으로 강제한다
+3. 스키마 위반 시 모델 서버가 **한 번 재시도**하고, 그래도 실패하면 `INVALID_INPUT`
+
+### 요청
+
+```jsonc
+{
+  "task": "product_extract",
+  "request_id": "a1b2c3d4",
+  "input": {
+    "product_info": "구성품 본체 1개 · 소재 캔버스 · 사이즈 43×36cm",  // 선택. 있으면 이미지보다 우선
+    "image_count": 9
+  }
+}
+```
+
+### 응답 `result` — 이 스키마를 벗어나면 거절한다
+
+```jsonc
+{
+  "product_name": "PARK 페이즐리 에코백 캔버스 가방 43×36cm",  // 1~100자
+  "brand": "PARK HERE",            // 0~100자. 모르면 빈 문자열
+  "manufacturer": "PARK HERE",     // 0~100자
+  "description": "…",              // 10~2000자. 상품 설명 본문
+
+  // ★ 카테고리는 검색어만 준다. 네이버 ID 를 지어내지 않는다 (D-B).
+  //   확신 순서대로 1~5개. 백엔드가 앞에서부터 조회해 맞는 것을 고른다.
+  "category_query": ["에코백", "캔버스백", "여성가방"],
+
+  "options": [                     // 0~50개. 없으면 빈 배열
+    { "name": "화이트", "price": 0, "stock": 9838 }   // name 1~50자, price ≥ 0, stock ≥ 0
+  ],
+
+  "tags": ["에코백가방", "크로스백"],   // 0~10개, 각 1~20자.
+                                       //  상품명·카테고리에 이미 있는 단어는 넣지 않는다
+                                       //  (네이버가 "등록불가 단어"로 거절한다)
+
+  "attributes": {                  // 속성명·값 모두 자유 문자열. 0~20쌍
+    "사용대상": "여성",
+    "패턴": "프린트",
+    "주요소재": "캔버스"
+  },
+
+  "kc": { "mode": "none", "detail": "KC 대상 아님" },   // mode: "has" | "none"
+
+  "price_suggestion": null,        // 정수 또는 null. 확신 없으면 null (사람이 정한다)
+
+  "analysis": { "ocr_chars": 542 } // 참고 지표. 자유 형식
+}
+```
+
+#### 반드시 지킬 것
+
+| 규칙 | 이유 |
+| --- | --- |
+| `category_query` 는 **검색어**다. 숫자 ID 금지 | 네이버 카테고리 5002개를 모델이 외울 수 없다 |
+| `tags` 에 상품명·카테고리 단어를 넣지 않는다 | 네이버가 "등록불가 단어"로 400 을 낸다 |
+| `price_suggestion` 은 **확신 없으면 `null`** | 가격을 지어내면 실제로 그 값에 팔린다 |
+| `options[].stock` 은 정수 | 문자열이면 등록이 거절된다 |
+| `kc.mode` 는 `has` / `none` 둘 중 하나 | 그 외 값은 매핑할 곳이 없다 |
+| 원산지·고시·이미지 URL 은 **넣지 않는다** | 백엔드가 채운다. 넣으면 무시된다 |
+
+#### 백엔드가 이어서 하는 일
+
+1. `category_query` → 네이버 카테고리 조회 → `leafCategoryId` 확정
+2. 카테고리 경로 → 상품정보제공고시 상품군 결정 → 항목 정의 조회 → 채움
+3. 이미지 → 네이버 이미지 API 업로드 → 반환된 URL 사용
+4. 원산지 `"00"`(국산), 택배사 코드, 배송비 → 사용자의 배송 설정에서
+5. `POST /v2/products` 호출 → `originProductNo` 저장
+
+---
+
+## 9. 검증과 실패 처리
+
+- 모델 서버는 **자기 출력을 스스로 검증한다.** 스키마에 안 맞으면 한 번 재시도하고,
+  그래도 안 되면 `INVALID_INPUT` 으로 실패시킨다. 깨진 결과를 백엔드로 넘기지 않는다.
+- 백엔드도 **받은 뒤 다시 검증한다.** 모르는 블록 타입은 건너뛰고, 필수 필드가
+  없으면 작업을 실패 처리한다.
+- 부분 성공은 없다. 문서는 통째로 성공하거나 실패한다.
+
+---
+
+## 10. 아직 안 정한 것
+
+1. **모델 서버 주소** — 지금은 `http://localhost:8100` 을 가정한다.
+   컨테이너로 띄우면 서비스명으로 바꾼다. (Gu)
+2. **인증** — 같은 VM 안이라 없다. 분리 배포하면 내부 토큰이 필요하다. (Gu)
+3. **동시 처리 한도** — 모델 서버가 한 번에 몇 건을 받을 수 있는지.
+   초과 시 `RATE_LIMITED` 로 돌려주면 백엔드가 대기시킨다. (Park)
+4. **`product_extract` 의 이미지 장수 상한** — 상세페이지가 20장이 넘을 때
+   전부 넣을지, 앞 N장만 볼지. (Park)
+
+---
+
+## 11. 지금 상태
+
+백엔드는 위 계약을 **provider 인터페이스** 뒤에 두고 목업으로 돌고 있다.
+
+```
+web/backend/app/generation/
+├── base.py       # GenerationProvider 프로토콜 — 위 계약과 1:1
+├── mock.py       # 지금 쓰는 목업
+└── registry.py   # GENERATION_PROVIDER 로 교체
+```
+
+모델 서버가 준비되면 `remote.py` 를 추가하고 `.env` 의
+`GENERATION_PROVIDER=remote` 로 바꾼다. 프론트엔드·DB·화면은 바뀌지 않는다.
+
+**네이버 커머스 연동은 이미 실제로 동작한다** (토큰·이미지 업로드·카테고리
+조회·상품 등록·삭제 확인 완료). M4 의 출력만 들어오면 바로 실제 등록까지 이어진다.
+
+---
+
+## 변경 이력
 
 | 버전 | 날짜 | 내용 |
-|---|---|---|
-| v0.1 | 2026-09-10 | 초안. 3갈래 계약 통합안, 결정 안건 D1~D11 도출 |
-| v0.2 | 2026-09-10 | D1~D11 잠정 확정 반영. 비동기 처리(`jobs/{id}` 폴링) 로 구조 변경, `options.store_name` 추가, 프론트 호출 흐름 재작성 |
-| v0.3 | 2026-09-10 | FastAPI 골격 구현과 함께 정리. 자산 URL 을 `/assets/{request_id}/{filename}` 2세그먼트로 확정 |
-| v0.4 | 2026-09-10 | `backend/` 삭제 (D11 완료). compose 정리(healthcheck·depends_on·env_file 옵션), 프론트 `app.py` 비동기 대응, 모델 연결 가이드 추가 |
-| v0.5 | 2026-09-10 | `/metrics` (Prometheus) 추가, 요청마다 `X-Request-ID` 응답 헤더 (없으면 서버 생성) |
+| --- | --- | --- |
+| v0.1~v0.3 | 2026-09 초 | copy/banner 기준 초안 (폐기) |
+| **v1.0** | 2026-09-10 | 백엔드↔모델 계약으로 재작성. 모델 4개 정의, D-A·D-B 확정 |

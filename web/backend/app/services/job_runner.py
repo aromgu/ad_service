@@ -118,12 +118,91 @@ def _save_product_draft(db, job: Job, data: ProductDraftData) -> ProductDraft:
         attributes=data.attributes,
         shipping=form.get("shipping") or {},
     )
-    if form.get("submit_mode") == "auto":
-        draft.status = "registered"
-        draft.registered_at = utcnow()
+    _resolve_naver_categories(draft)
     db.add(draft)
     db.flush()
     return draft
+
+
+def _category_keywords(draft: ProductDraft) -> list[str]:
+    """카테고리를 찾아볼 검색어를 그럴듯한 순서로 만든다.
+
+    상품명의 뒷단어("… 바이옴 세럼 30ml" → "세럼")가 품목을 가장 잘 나타내므로
+    먼저 써 보고, 안 되면 생성기가 제안한 카테고리의 마지막 조각으로 넘어간다.
+    """
+    words = [
+        w.strip("()[]{}")
+        for w in (draft.product_name or "").split()
+        if len(w) >= 2 and not any(ch.isdigit() for ch in w)
+    ]
+    keywords = list(reversed(words))
+
+    suggested = (draft.selected_category or "").split("›")[-1].strip()
+    if suggested:
+        keywords.append(suggested)
+
+    seen: set[str] = set()
+    return [k for k in keywords if not (k in seen or seen.add(k))][:6]
+
+
+def _resolve_naver_categories(draft: ProductDraft) -> None:
+    """목업이 제안한 카테고리를 실제 네이버 말단 카테고리로 바꾼다.
+
+    등록에는 leafCategoryId 가 반드시 필요하다. 조회에 실패하면 후보를 비워 두고,
+    사용자가 검토 화면에서 직접 검색해 고르게 한다.
+    """
+    from app.naver.client import NaverApiError
+    from app.naver import catalog
+    from app.naver.service import get_client
+
+    try:
+        client = get_client()
+        hits = []
+        for keyword in _category_keywords(draft):
+            hits = catalog.search(client, keyword, limit=3)
+            if hits:
+                break
+    except Exception:  # noqa: BLE001 — 카테고리 조회 실패가 생성 자체를 막으면 안 된다
+        logger.info("네이버 카테고리 조회 실패 — 후보를 비웁니다", exc_info=True)
+        hits = []
+
+    if not hits:
+        draft.category_candidates = []
+        draft.selected_category = ""
+        draft.selected_category_id = ""
+        return
+
+    draft.category_candidates = [
+        {"id": h["id"], "path": h["path"], "confidence": conf}
+        for h, conf in zip(hits, (95, 88, 80))
+    ]
+    draft.selected_category = hits[0]["path"]
+    draft.selected_category_id = hits[0]["id"]
+
+
+async def _auto_register(db, draft: ProductDraft) -> None:
+    """'AI가 알아서 등록하기' 경로 — 분석이 끝나면 곧바로 네이버에 올린다.
+
+    실패해도 작업 자체를 실패시키지 않는다. 초안은 그대로 남겨 두고 사유를 적어
+    사용자가 검토 화면(4c)에서 고쳐 다시 등록할 수 있게 한다.
+    """
+    from app.naver.client import NaverApiError
+    from app.naver.service import register as naver_register
+
+    try:
+        # 네이버 호출은 동기 HTTP 라 이벤트 루프를 막지 않도록 스레드로 넘긴다.
+        result = await asyncio.to_thread(naver_register, draft)
+    except NaverApiError as e:
+        logger.info("자동 등록 실패 — 초안으로 남깁니다: %s", e)
+        draft.analysis = {**(draft.analysis or {}), "register_error": str(e)}
+        db.commit()
+        return
+
+    draft.naver_origin_product_no = str(result.get("originProductNo") or "")
+    draft.naver_channel_product_no = str(result.get("smartstoreChannelProductNo") or "")
+    draft.status = "registered"
+    draft.registered_at = utcnow()
+    db.commit()
 
 
 async def _run(job_id: str, images: list[ImageRef]) -> None:
@@ -158,6 +237,8 @@ async def _run(job_id: str, images: list[ImageRef]) -> None:
         if isinstance(result, ProductDraftData):
             draft = _save_product_draft(db, job, result)
             draft_id = draft.id
+            if (job.form or {}).get("submit_mode") == "auto":
+                await _auto_register(db, draft)
         elif isinstance(result, DocumentDraft):
             doc_id = _save_document(db, job, result)
         else:  # pragma: no cover — provider 계약 위반

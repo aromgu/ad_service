@@ -2,6 +2,7 @@ import { API_BASE } from "./env";
 import type {
   Asset,
   BlogForm,
+  CategoryCandidate,
   ChatMessage,
   DetailPageForm,
   DocumentModel,
@@ -112,7 +113,9 @@ export const api = {
   registerProduct: (id: string) =>
     request<ProductDraft>(`/product-drafts/${id}/register`, { method: "POST" }),
   searchCategories: (q: string) =>
-    request<string[]>(`/product-drafts/categories/search?q=${encodeURIComponent(q)}`),
+    request<CategoryCandidate[]>(
+      `/product-drafts/categories/search?q=${encodeURIComponent(q)}`,
+    ),
 
   getShippingSettings: () => request<ShippingSettings>("/settings/shipping"),
   putShippingSettings: (s: ShippingSettings) =>

@@ -212,6 +212,8 @@ class WorkspaceItem(BaseModel):
 
 # ---------- product drafts ----------
 class CategoryCandidate(BaseModel):
+    # 네이버 leafCategoryId. 등록에 필수라 후보에도 같이 들고 다닌다.
+    id: str = ""
     path: str
     confidence: int = 0
 
@@ -244,6 +246,7 @@ class ProductDraftOut(ORMModel):
     seller_code: str
     category_candidates: list[CategoryCandidate]
     selected_category: str
+    selected_category_id: str
     price: int | None
     discount_rate: int
     shipping_fee: int
@@ -253,6 +256,8 @@ class ProductDraftOut(ORMModel):
     tags: list[str]
     attributes: dict[str, str]
     shipping: dict[str, Any]
+    naver_origin_product_no: str
+    naver_channel_product_no: str
     registered_at: datetime | None
     updated_at: datetime
 
@@ -269,6 +274,7 @@ class ProductDraftPatch(BaseModel):
     manufacturer: str | None = Field(default=None, max_length=120)
     seller_code: str | None = Field(default=None, max_length=60)
     selected_category: str | None = Field(default=None, max_length=200)
+    selected_category_id: str | None = Field(default=None, max_length=20)
     price: int | None = Field(default=None, ge=0)
     discount_rate: int | None = Field(default=None, ge=0, le=100)
     shipping_fee: int | None = Field(default=None, ge=0)

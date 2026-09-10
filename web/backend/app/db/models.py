@@ -147,9 +147,11 @@ class ProductDraft(Base):
     manufacturer: Mapped[str] = mapped_column(String(120), default="")
     seller_code: Mapped[str] = mapped_column(String(60), default="")
 
-    # [{path, confidence}] — selected_category 가 실제 선택값
+    # [{id, path, confidence}] — id 는 네이버 leafCategoryId
     category_candidates: Mapped[list] = mapped_column(JSON, default=list)
     selected_category: Mapped[str] = mapped_column(String(200), default="")
+    # 네이버 등록에 반드시 필요한 말단 카테고리 ID
+    selected_category_id: Mapped[str] = mapped_column(String(20), default="")
 
     price: Mapped[int | None] = mapped_column(Integer, nullable=True)
     discount_rate: Mapped[int] = mapped_column(Integer, default=0)
@@ -165,6 +167,10 @@ class ProductDraft(Base):
     attributes: Mapped[dict] = mapped_column(JSON, default=dict)
     # 등록 시점의 배송 설정 스냅샷
     shipping: Mapped[dict] = mapped_column(JSON, default=dict)
+
+    # 네이버 등록 결과
+    naver_origin_product_no: Mapped[str] = mapped_column(String(30), default="")
+    naver_channel_product_no: Mapped[str] = mapped_column(String(30), default="")
 
     registered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

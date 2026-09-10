@@ -5,23 +5,13 @@ from fastapi import APIRouter, HTTPException, Query, status
 from app.api.deps import CurrentUser, DbSession
 from app.core.korean import eul_reul
 from app.db.models import ProductDraft
-from app.schemas.common import ProductDraftOut, ProductDraftPatch
+from app.naver import catalog as naver_catalog
+from app.naver.client import NaverApiError
+from app.naver.service import get_client
+from app.naver.service import register as naver_register
+from app.schemas.common import CategoryCandidate, ProductDraftOut, ProductDraftPatch
 
 router = APIRouter(prefix="/product-drafts", tags=["products"])
-
-# 카테고리 직접 검색(4c)용 목업 사전. 실제로는 네이버 커머스 카테고리 API 를 호출한다.
-_CATEGORY_BOOK = [
-    "패션잡화 › 여성가방 › 에코백",
-    "패션잡화 › 여성가방 › 크로스백",
-    "패션잡화 › 남성가방 › 에코백",
-    "출산/육아 › 유아동잡화 › 가방 › 토트백/숄더백",
-    "생활/건강 › 문구/사무용품 › 노트/메모지",
-    "생활/건강 › 생활용품 › 수납/정리",
-    "화장품/미용 › 스킨케어 › 에센스/세럼",
-    "화장품/미용 › 스킨케어 › 크림",
-    "식품 › 가공식품 › 간편조리식품",
-    "디지털/가전 › 주변기기 › 마우스패드",
-]
 
 
 def _get_owned(db, draft_id: str, user_id: str) -> ProductDraft:
@@ -31,11 +21,19 @@ def _get_owned(db, draft_id: str, user_id: str) -> ProductDraft:
     return draft
 
 
-@router.get("/categories/search", response_model=list[str])
-def search_categories(q: str = Query(min_length=1, max_length=60)) -> list[str]:
-    """카테고리 직접 검색. 지금은 내장 사전에서 부분 일치로 찾는다."""
-    needle = q.strip()
-    return [c for c in _CATEGORY_BOOK if needle in c][:8]
+@router.get("/categories/search", response_model=list[CategoryCandidate])
+def search_categories(q: str = Query(min_length=1, max_length=60)) -> list[CategoryCandidate]:
+    """네이버 실제 카테고리 검색.
+
+    등록에는 말단 카테고리 ID(leafCategoryId)가 반드시 필요해서 경로와 함께 내려준다.
+    """
+    try:
+        client = get_client()
+    except NaverApiError as e:
+        # 키 미설정을 빈 결과로 숨기면 원인을 못 찾는다.
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(e)) from e
+    hits = naver_catalog.search(client, q.strip())
+    return [CategoryCandidate(id=h["id"], path=h["path"]) for h in hits]
 
 
 @router.get("/{draft_id}", response_model=ProductDraftOut)
@@ -66,18 +64,17 @@ def patch_draft(
 
 @router.post("/{draft_id}/register", response_model=ProductDraftOut)
 def register(draft_id: str, user: CurrentUser, db: DbSession) -> ProductDraft:
-    """네이버에 상품 등록.
+    """네이버 스마트스토어에 상품을 실제로 등록한다.
 
-    실제 커머스 API 연동은 아직 붙이지 않았다. 지금은 필수값을 검증하고
-    상태만 registered 로 바꾼다. 연동 시 이 함수 안에서 토큰 발급 → 상품 등록을
-    호출하면 되고, 호출부(프론트)는 바뀌지 않는다.
+    이미지는 네이버 이미지 API 로 다시 올린다(외부 URL 직접 입력은 거부된다).
+    상품정보제공고시 항목은 상품군 정의를 조회해 채운다.
     """
     draft = _get_owned(db, draft_id, user.id)
 
     missing: list[str] = []
     if not draft.product_name.strip():
         missing.append("상품명")
-    if not draft.selected_category.strip():
+    if not draft.selected_category.strip() or not draft.selected_category_id.strip():
         missing.append("카테고리")
     if draft.price is None or draft.price <= 0:
         missing.append("판매가")
@@ -86,6 +83,14 @@ def register(draft_id: str, user: CurrentUser, db: DbSession) -> ProductDraft:
         listed = ", ".join(missing[:-1] + [eul_reul(missing[-1])])
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"{listed} 먼저 입력해 주세요.")
 
+    try:
+        result = naver_register(draft)
+    except NaverApiError as e:
+        # 네이버가 알려준 이유를 그대로 보여준다 — 사용자가 직접 고칠 수 있는 정보다.
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(e)) from e
+
+    draft.naver_origin_product_no = str(result.get("originProductNo") or "")
+    draft.naver_channel_product_no = str(result.get("smartstoreChannelProductNo") or "")
     draft.status = "registered"
     draft.registered_at = datetime.now(timezone.utc)
     db.commit()

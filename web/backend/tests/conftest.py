@@ -11,6 +11,10 @@ os.environ["UPLOAD_DIR"] = f"{_tmp}/uploads"
 os.environ["MOCK_DURATION_SECONDS"] = "0.5"
 os.environ["JWT_SECRET"] = "test-secret"
 os.environ["ALLOW_DEMO_USER"] = "true"
+# 테스트는 네이버 API 를 절대 호출하지 않는다. 키를 비우고 실등록도 끈다.
+os.environ["NAVER_REGISTER_LIVE"] = "false"
+os.environ["NAVER_CLIENT_ID"] = ""
+os.environ["NAVER_CLIENT_SECRET"] = ""
 
 from fastapi.testclient import TestClient  # noqa: E402
 

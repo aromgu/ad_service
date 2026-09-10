@@ -33,5 +33,6 @@ def test_register_error_message_reads_naturally(client, png_bytes):
         time.sleep(0.2)
 
     detail = client.post(f"/api/product-drafts/{j['product_draft_id']}/register").json()["detail"]
-    assert detail == "판매가를 먼저 입력해 주세요.", detail
+    # 마지막 항목에만 조사가 붙고, 받침에 맞는 '를' 가 쓰인다
+    assert detail == "카테고리, 판매가를 먼저 입력해 주세요.", detail
     assert "을(를)" not in detail
