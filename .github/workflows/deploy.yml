@@ -1,8 +1,10 @@
 name: Deploy
 
+# 현재 비활성화 상태 (개발 단계, 수동 배포). 켜는 법: gh workflow enable deploy.yml
+# 켜기 전에 VM 에 self-hosted runner 등록 필요 — docs/deployment.md §1.
+#
 # main 이 CI 를 통과하면 GCP VM 에 배포한다.
 # VM 에 등록된 self-hosted runner 에서 실행된다 (인바운드 방화벽 불필요).
-# runner 설정: docs/deployment.md
 
 on:
   workflow_run:

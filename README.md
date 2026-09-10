@@ -7,82 +7,81 @@
 - **입력**: 자연어 텍스트, 이미지 (둘 중 하나 또는 둘 다)
 - **출력**: 자연어 텍스트, 이미지 (둘 중 하나 또는 둘 다)
 - **핵심 모델**: 멀티모달 Vision-Language Model (VLM) + 이미지 생성 모델
-- **서빙**: FastAPI
-- **배포**: Docker (CPU / GPU 이미지 분리)
+- **서빙**: FastAPI (비동기 job + 폴링)
+- **배포**: Docker Compose (CPU / GPU 이미지 분리)
 
-> 현재 상태: 디렉터리 / 파일 스캐폴딩만 구성됨. `.py` 파일은 전부 빈 파일이며 실제 구현은 아직 진행 전.
-> Docker / 설정 / CI 파일만 내용이 채워져 있다.
+### 현재 상태
+
+| 영역 | 상태 |
+|---|---|
+| API 서버 | 구현됨 — 엔드포인트·스키마·비동기 job·에러 규격·`/metrics` 동작. 생성은 `MockPipeline`(가짜) |
+| 실제 모델 (VLM / 이미지 생성) | 작업 중 — `src/ad_service/api/pipeline.py` 프로토콜에 연결 ([docs/model_integration.md](docs/model_integration.md)) |
+| 프론트엔드 (Streamlit) | 작업 중 — `frontend/` |
+| CI | 동작 — lint·format·mypy·test·compose 검증·이미지 빌드 |
+| 배포 | 수동 (`./scripts/deploy.sh`). 자동 배포는 개발 단계 지나면 |
 
 ## 디렉터리 구조
 
 ```
 ad_service/
-├── .github/workflows/     # CI 파이프라인
+├── .github/workflows/     # CI (ci.yml) · 배포 (deploy.yml, 비활성)
 ├── configs/               # 모델 / 앱 설정 (yaml)
-├── data/
-│   ├── raw/               # 원본 데이터
-│   ├── processed/         # 전처리된 데이터
-│   ├── samples/           # 데모 / 테스트용 샘플
-│   └── outputs/           # 생성 결과물
-├── deploy/triton/         # NVIDIA Triton Inference Server 모델 저장소
-├── docker/                # Dockerfile, docker-compose
-├── docs/                  # 설계 문서
-├── models/checkpoints/    # 학습/다운로드된 가중치 (git 미포함)
-├── notebooks/             # 실험 노트북
-├── scripts/               # 유틸리티 스크립트
+├── data/                  # raw / processed / samples / outputs
+├── deploy/
+│   ├── triton/            # NVIDIA Triton 모델 저장소
+│   └── monitoring/        # Prometheus / Grafana 설정
+├── docker/                # Dockerfile(CPU) · Dockerfile.gpu · docker-compose.yml
+├── docs/                  # 아래 "문서" 참고
+├── examples/requests/     # API 예시 요청 JSON
+├── frontend/              # Streamlit 앱 (thlee)
+├── models/checkpoints/    # 가중치 (git 미포함)
+├── scripts/               # deploy.sh, download_models.py, ...
 ├── src/ad_service/
-│   ├── api/               # FastAPI 앱 (routes, schemas)
-│   ├── core/              # 설정, 공통 상수
-│   ├── models/            # VLM / 이미지 생성 모델 래퍼
-│   ├── pipelines/         # 전처리 + 추론 파이프라인
-│   ├── data/              # 데이터셋 / 로더
-│   ├── prompts/           # 프롬프트 템플릿
-│   ├── training/          # 학습 / 파인튜닝
-│   └── utils/             # I/O, 이미지, 로깅 유틸
-└── tests/                 # unit / integration 테스트
+│   ├── api/               # FastAPI: routes, schemas, jobs, pipeline, metrics, observability
+│   ├── core/              # 설정 (pydantic-settings)
+│   ├── models/            # VLM / 이미지 생성 래퍼 (cjpark)
+│   ├── pipelines/         # 전처리 + 추론 (cjpark)
+│   └── prompts/, data/, training/, utils/
+└── tests/                 # unit / integration (21)
 ```
 
 ## 빠른 시작
 
 ```bash
-# 로컬 개발 (venv)
-make install
-make run
+# API + 프론트 스택 (권장)
+docker compose -f docker/docker-compose.yml up -d --build api frontend
+#   API   http://localhost:8000/docs
+#   front http://localhost:8501
 
-# Docker (CPU API 서버)
-docker compose -f docker/docker-compose.yml up api
-
-# Docker (GPU)
-docker build -f docker/Dockerfile.gpu -t ad-service:gpu .
+# API만 로컬에서 (venv)
+make install && make run
 ```
 
-## 환경 변수
+`.env` 는 없어도 뜬다. 값을 바꾸려면 `cp .env.example .env` 후 수정
+(compose 는 있으면 읽고 `AD_*` 는 서비스에서 기본값 지정).
 
-`.env.example`를 `.env`로 복사해서 채운다.
+## 문서
 
-```bash
-cp .env.example .env
-```
+| | |
+|---|---|
+| [docs/api_spec.md](docs/api_spec.md) | API 계약 (요청/응답 스키마, 에러 규격, 결정 D1~D11) |
+| [docs/model_integration.md](docs/model_integration.md) | 실제 모델을 `MockPipeline` 자리에 연결하는 법 |
+| [docs/monitoring.md](docs/monitoring.md) | `/metrics`, 로그, Prometheus/Grafana, 알림 |
+| [docs/runbook.md](docs/runbook.md) | 장애 대응 |
+| [docs/deployment.md](docs/deployment.md) | 배포 절차 · 롤백 · runner (나중) |
 
-`docker run` 시 `--env-file .env`로 주입된다.
+## API
 
-## API 서버
+전체 계약은 [docs/api_spec.md](docs/api_spec.md), 예시 요청은 `examples/requests/`.
 
-계약 정의: [docs/api_spec.md](docs/api_spec.md).
+| 메서드 | 경로 | |
+|---|---|---|
+| `POST` | `/api/v1/generate` | 생성 작업 접수 → `202 { request_id, poll_url }`. JSON 또는 이미지 포함 시 multipart |
+| `GET` | `/api/v1/jobs/{request_id}` | 작업 상태·결과 (2초 폴링) |
+| `GET` | `/api/v1/assets/{request_id}/{filename}` | 생성 이미지 |
+| `GET` | `/health` · `/metrics` | 헬스체크 · Prometheus |
 
-```bash
-make run          # uvicorn ad_service.api.main:app --reload
-# 문서: http://localhost:8000/docs
-```
-
-- `POST /api/v1/generate` → `202 { request_id, poll_url }` (JSON 또는 이미지 포함 시 multipart)
-- `GET  /api/v1/jobs/{request_id}` → 상태·결과 (프론트가 2초 폴링)
-- `GET  /api/v1/assets/{request_id}/{filename}` → 생성 이미지
-- `GET  /health` · `GET /metrics` (Prometheus)
-
-현재 생성은 `MockPipeline`(가짜 결과). 실제 모델은 모델 담당이 `src/ad_service/api/pipeline.py` 의 프로토콜을 구현해 교체한다.
-
-운영: [docs/monitoring.md](docs/monitoring.md) · [docs/runbook.md](docs/runbook.md)
+생성은 현재 `MockPipeline`(가짜 결과). 실제 모델 연결은 [docs/model_integration.md](docs/model_integration.md).
 
 ---
 
