@@ -66,6 +66,21 @@ cp .env.example .env
 
 `docker run` 시 `--env-file .env`로 주입된다.
 
+## API 서버
+
+계약 정의: [docs/api_spec.md](docs/api_spec.md).
+
+```bash
+make run          # uvicorn ad_service.api.main:app --reload
+# 문서: http://localhost:8000/docs
+```
+
+- `POST /api/v1/generate` → `202 { request_id, poll_url }` (JSON 또는 이미지 포함 시 multipart)
+- `GET  /api/v1/jobs/{request_id}` → 상태·결과 (프론트가 2초 폴링)
+- `GET  /api/v1/assets/{request_id}/{filename}` → 생성 이미지
+
+현재 생성은 `MockPipeline`(가짜 결과). 실제 모델은 모델 담당이 `src/ad_service/api/pipeline.py` 의 프로토콜을 구현해 교체한다.
+
 ---
 
 ## Docker로 실험하기

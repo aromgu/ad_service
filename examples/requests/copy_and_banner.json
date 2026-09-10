@@ -1,0 +1,16 @@
+{
+  "text": "폐현수막을 재활용해 만든 가볍고 튼튼한 업사이클링 파우치. 방수 원단, 3가지 색상",
+  "outputs": ["copy", "banner"],
+  "options": {
+    "store_name": "리메이크 workshop",
+    "business_type": "food_retail",
+    "product_category": "packaged_food",
+    "sales_channel": "social_media",
+    "campaign_goal": "brand_awareness",
+    "target_audience": "환경을 생각하는 20~30대",
+    "tone": "밝고 진정성 있는",
+    "copy_style": "friendly",
+    "copy_length": "standard"
+  },
+  "source": { "channel": "web" }
+}

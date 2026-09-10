@@ -1,33 +1,48 @@
+"""FastAPI 앱 팩토리.
+
+실행: ``uvicorn ad_service.api.main:app --host 0.0.0.0 --port 8000``
+"""
+
+from __future__ import annotations
+
 from fastapi import FastAPI
-from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
+
+from ad_service.api.errors import register_error_handlers
+from ad_service.api.jobs import JobStore
+from ad_service.api.pipeline import MockPipeline
+from ad_service.api.routes import assets, generate, health, jobs
+from ad_service.core.config import get_settings
 
 
-# 1. Pydantic 스키마 정의
-class AdRequest(BaseModel):
-    store_name: str
-    business_type: str
-    target_audience: str
-    keywords: str
-    tone_manner: str
-
-class AdResponse(BaseModel):
-    ad_text: str
-    image_url: str
-
-# 2. FastAPI 앱 초기화
-app = FastAPI(title="AI Ad Service API")
-
-# 3. 광고 생성 엔드포인트 구현
-@app.post("/api/v1/generate", response_model=AdResponse)
-def generate_advertisement(request: AdRequest):
-    generated_text = f"[{request.store_name}] 고객님들을 위한 특별한 제안! {request.keywords}와 함께하는 최고의 시간을 즐겨보세요."
-    dummy_image_url = "https://via.placeholder.com/400x300.png?text=AI+Ad+Result"
-    
-    return AdResponse(
-        ad_text=generated_text,
-        image_url=dummy_image_url
+def create_app() -> FastAPI:
+    settings = get_settings()
+    app = FastAPI(
+        title=settings.app_name,
+        version=settings.app_version,
+        description="소상공인 맞춤형 광고 문구·이미지 생성 API",
     )
 
-@app.get("/")
-def root():
-    return {"message": "AI Ad Service Backend is running!"}
+    allow_all = settings.cors_allow_origins == ["*"]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_allow_origins,
+        # "*" 오리진과 credentials 는 함께 쓸 수 없다.
+        allow_credentials=not allow_all,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # 공유 상태: job 저장소와 파이프라인. 실제 모델 연결 시 pipeline 만 교체하면 된다.
+    app.state.job_store = JobStore(ttl_seconds=settings.job_ttl_seconds)
+    app.state.pipeline = MockPipeline()
+
+    register_error_handlers(app)
+    app.include_router(health.router)
+    app.include_router(generate.router)
+    app.include_router(jobs.router)
+    app.include_router(assets.router)
+    return app
+
+
+app = create_app()
