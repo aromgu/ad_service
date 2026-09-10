@@ -5,7 +5,7 @@ from app.generation.mock import MockProvider
 
 
 def _sample_urls() -> list[str]:
-    """web/images 의 생성 샘플 이미지를 목업 결과로 사용한다."""
+    """web/web-images 의 생성 샘플 이미지를 목업 결과로 사용한다."""
     if not SHARED_IMAGE_DIR.is_dir():
         return []
     names = sorted(p.name for p in SHARED_IMAGE_DIR.glob("serum_gen*.png"))

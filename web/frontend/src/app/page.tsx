@@ -24,7 +24,7 @@ const STEPS = [
 ];
 
 export default function LandingPage() {
-  // 데모 패널의 before/after 는 web/images 의 실제 촬영본과 생성 결과물.
+  // 데모 패널의 before/after 는 web/web-images 의 실제 촬영본과 생성 결과물.
   const before = assetUrl("/static/images/serum_real3.jpg");
   const after = assetUrl("/static/images/serum_gen4.png");
 

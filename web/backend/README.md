@@ -20,7 +20,7 @@ cp .env.example .env
 ```
 
 - Swagger: <http://localhost:8000/docs>
-- 정적 파일: `/static/uploads/*` (업로드 원본), `/static/images/*` (`web/images`)
+- 정적 파일: `/static/uploads/*` (업로드 원본), `/static/images/*` (`web/web-images` 폴더를 서빙)
 
 ## 구조
 

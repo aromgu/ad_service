@@ -70,7 +70,7 @@ def ai_edit_images(
 ) -> list[Asset]:
     """올린 사진을 블로그용 이미지로 다시 만든다 (3a-2).
 
-    지금은 목업이라 web/images 의 생성 샘플을 요청한 장수만큼 돌려준다.
+    지금은 목업이라 web/web-images 의 생성 샘플을 요청한 장수만큼 돌려준다.
     실제 이미지 생성 모델이 붙으면 이 함수 안만 바꾸면 된다 — prompt 와
     source_ids 는 이미 받아 두었다.
     """
@@ -78,7 +78,7 @@ def ai_edit_images(
     if not samples:
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,
-            "샘플 이미지를 찾을 수 없습니다. web/images 를 확인해 주세요.",
+            "샘플 이미지를 찾을 수 없습니다. web/web-images 를 확인해 주세요.",
         )
 
     created: list[Asset] = []

@@ -60,7 +60,7 @@ api.include_router(settings_routes.router)
 api.include_router(workspace.router)
 app.include_router(api)
 
-# 업로드 원본과 web/images 공용 이미지를 같은 /static 아래로 서빙한다.
+# 업로드 원본과 web/web-images 공용 이미지를 같은 /static 아래로 서빙한다.
 settings.upload_path.mkdir(parents=True, exist_ok=True)
 app.mount("/static/uploads", StaticFiles(directory=settings.upload_path), name="uploads")
 if SHARED_IMAGE_DIR.is_dir():

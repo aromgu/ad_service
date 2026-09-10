@@ -4,8 +4,9 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
-# web/images — 로고·샘플·생성 결과 이미지 공용 저장소 (CLAUDE.md 기준 내 소유 디렉터리)
-SHARED_IMAGE_DIR = BACKEND_DIR.parent / "images"
+# web/web-images — 로고·샘플·생성 결과 이미지 공용 저장소.
+# 폴더 이름과 달리 URL 은 /static/images 로 서빙한다 (문서에 저장된 주소를 깨지 않기 위해).
+SHARED_IMAGE_DIR = BACKEND_DIR.parent / "web-images"
 
 
 class Settings(BaseSettings):
