@@ -10,13 +10,16 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from ad_service.api.errors import register_error_handlers
 from ad_service.api.jobs import JobStore
+from ad_service.api.observability import setup_observability
 from ad_service.api.pipeline import build_pipeline
 from ad_service.api.routes import assets, generate, health, jobs
 from ad_service.core.config import get_settings
+from ad_service.utils.logging import configure_logging
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    configure_logging(settings.log_level, json_logs=settings.log_json)
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
@@ -41,6 +44,7 @@ def create_app() -> FastAPI:
     app.state.background_tasks = set()
 
     register_error_handlers(app)
+    setup_observability(app)  # /metrics, request_id, 요청 로깅
     app.include_router(health.router)
     app.include_router(generate.router)
     app.include_router(jobs.router)

@@ -72,6 +72,7 @@
 | 메서드 | 경로 | 용도 |
 |---|---|---|
 | `GET` | `/health` | 헬스체크 (배포·모니터링용, prefix 없음) |
+| `GET` | `/metrics` | Prometheus 메트릭 (`docs/monitoring.md`) |
 | `POST` | `/api/v1/generate` | 광고 생성 **작업 접수** → `202` + `request_id` |
 | `GET` | `/api/v1/jobs/{request_id}` | 작업 상태·결과 조회 (프론트가 폴링) |
 | `GET` | `/api/v1/assets/{request_id}/{filename}` | 생성된 이미지 파일 반환 |
@@ -348,3 +349,4 @@ Streamlit 은 `st.spinner` + 위 폴링 루프로 처리. (SSE/WebSocket 은 MVP
 | v0.2 | 2026-09-10 | D1~D11 잠정 확정 반영. 비동기 처리(`jobs/{id}` 폴링) 로 구조 변경, `options.store_name` 추가, 프론트 호출 흐름 재작성 |
 | v0.3 | 2026-09-10 | FastAPI 골격 구현과 함께 정리. 자산 URL 을 `/assets/{request_id}/{filename}` 2세그먼트로 확정 |
 | v0.4 | 2026-09-10 | `backend/` 삭제 (D11 완료). compose 정리(healthcheck·depends_on·env_file 옵션), 프론트 `app.py` 비동기 대응, 모델 연결 가이드 추가 |
+| v0.5 | 2026-09-10 | `/metrics` (Prometheus) 추가, 요청마다 `X-Request-ID` 응답 헤더 (없으면 서버 생성) |
