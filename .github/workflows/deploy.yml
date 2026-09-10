@@ -1,0 +1,39 @@
+name: Deploy
+
+# main 이 CI 를 통과하면 GCP VM 에 배포한다.
+# VM 에 등록된 self-hosted runner 에서 실행된다 (인바운드 방화벽 불필요).
+# runner 설정: docs/deployment.md
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:        # 수동 재배포
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # CI 가 성공했을 때만 (workflow_dispatch 는 conclusion 이 비어서 통과)
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    runs-on: [self-hosted, gcp-vm]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Deploy
+        env:
+          DEPLOY_SERVICES: "api"
+        run: ./scripts/deploy.sh
+
+      - name: Smoke test
+        run: |
+          curl -fsS http://localhost:8000/health
+          curl -fsS -X POST http://localhost:8000/api/v1/generate \
+            -H 'content-type: application/json' \
+            -d '{"text":"deploy smoke","outputs":["copy"]}' | grep -q request_id
