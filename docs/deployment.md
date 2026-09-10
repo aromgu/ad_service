@@ -128,18 +128,20 @@ API 안뜸 / 포트 충돌 / job 실패·적체 / GPU OOM / 디스크 / 모니�
 
 ```bash
 curl -s localhost:8000/health
+curl -s localhost:8000/metrics | head
 docker compose -f docker/docker-compose.yml ps
 docker stats --no-stream
 ```
 
 - API 문서: `http://34.133.130.208:8000/docs` (GCP 방화벽에서 8000 허용 시)
 - 생성 결과물: named volume `api-var` (`docker compose exec api ls /app/var/outputs`)
+- 메트릭·로그·알림: [monitoring.md](monitoring.md)
 
 ---
 
 ## 5. 다음 (TODO)
 
-- [ ] `/metrics` 엔드포인트 + Prometheus (prometheus-fastapi-instrumentator)
+- [ ] self-hosted runner 등록 → 자동 배포 (개발 단계 지나면)
 - [ ] 로그 중앙 수집 (현재는 `docker compose logs`)
 - [ ] GCP 알림: VM CPU/메모리/디스크
 - [ ] job 저장소 Redis 전환 (API 인스턴스 2개 이상일 때)
