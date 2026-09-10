@@ -27,8 +27,15 @@ RUN pip install -e .
 
 EXPOSE 8000
 
+# 생성 결과/업로드가 쌓이는 위치. compose 에서 named volume 으로 마운트한다.
+# 빈 named volume 은 이 디렉터리의 소유권(appuser)을 물려받으므로 쓰기가 된다.
+RUN mkdir -p /app/var/outputs /app/var/uploads
+
 # 비루트 유저
 RUN useradd -m appuser && chown -R appuser:appuser ${APP_HOME}
 USER appuser
+
+HEALTHCHECK --interval=10s --timeout=3s --retries=5 --start-period=10s \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
 
 CMD ["uvicorn", "ad_service.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

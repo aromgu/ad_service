@@ -322,7 +322,7 @@ Streamlit 은 `st.spinner` + 위 폴링 루프로 처리. (SSE/WebSocket 은 MVP
 | D8 | asset 저장소 | **로컬 디스크** + API 서빙. 추후 GCS | 확정 |
 | D9 | 한글 라벨 → enum 매핑표 | **thlee 초안 → API 담당 확정** | thlee |
 | D10 | `text` 최대 길이 | **2000자** (`app_config.yaml` 도 2000 으로 맞춤) | 확정 |
-| D11 | `backend/` 폐기 | **`src/ad_service/api/` 로 단일화** | thlee·cjpark 검토 |
+| D11 | `backend/` 폐기 | **완료.** `backend/` 삭제, `src/ad_service/api/` 로 단일화 | 확정 |
 
 ---
 
@@ -347,3 +347,4 @@ Streamlit 은 `st.spinner` + 위 폴링 루프로 처리. (SSE/WebSocket 은 MVP
 | v0.1 | 2026-09-10 | 초안. 3갈래 계약 통합안, 결정 안건 D1~D11 도출 |
 | v0.2 | 2026-09-10 | D1~D11 잠정 확정 반영. 비동기 처리(`jobs/{id}` 폴링) 로 구조 변경, `options.store_name` 추가, 프론트 호출 흐름 재작성 |
 | v0.3 | 2026-09-10 | FastAPI 골격 구현과 함께 정리. 자산 URL 을 `/assets/{request_id}/{filename}` 2세그먼트로 확정 |
+| v0.4 | 2026-09-10 | `backend/` 삭제 (D11 완료). compose 정리(healthcheck·depends_on·env_file 옵션), 프론트 `app.py` 비동기 대응, 모델 연결 가이드 추가 |

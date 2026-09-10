@@ -50,6 +50,26 @@ class GenerationPipeline(Protocol):
     def generate(self, data: GenerationInput, output_dir: Path) -> GenerationResult: ...
 
 
+def build_pipeline(copy_provider: str, image_provider: str) -> GenerationPipeline:
+    """설정값(`AD_COPY_PROVIDER` / `AD_IMAGE_PROVIDER`)으로 파이프라인을 고른다.
+
+    모델 담당(cjpark)은 실제 파이프라인을 이 함수에 등록한다. 예::
+
+        if copy_provider != "mock":
+            from ad_service.pipelines.inference import GenerationPipeline as RealPipeline
+            return RealPipeline(...)
+
+    자세한 내용은 docs/model_integration.md.
+    """
+
+    if copy_provider == "mock" and image_provider == "mock":
+        return MockPipeline()
+    raise NotImplementedError(
+        f"provider copy={copy_provider!r} image={image_provider!r} 는 아직 연결되지 않았습니다. "
+        "docs/model_integration.md 참고."
+    )
+
+
 class MockPipeline:
     """비용 없이 전체 흐름을 검증하기 위한 가짜 파이프라인.
 
