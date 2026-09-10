@@ -117,7 +117,27 @@ $COMPOSE --profile monitoring ps
 
 ---
 
-## 8. 전체 재기동 (최후의 수단)
+## 8. 배포가 안 나감 (Deploy 워크플로우가 큐에 멈춤)
+
+self-hosted runner 가 죽었거나 등록이 안 된 상태. CI 는 정상인데 "Deploy" 만 queued.
+
+```bash
+# runner 상태 (등록/설정 방식에 따라)
+systemctl --user status gh-runner        # user 서비스로 등록한 경우
+sudo ./svc.sh status                     # 시스템 서비스로 등록한 경우 (~/actions-runner 에서)
+cd ~/actions-runner && ./run.sh          # 서비스 아니고 수동 실행
+
+# 재시작
+systemctl --user restart gh-runner
+```
+
+GitHub → repo Settings → Actions → Runners 에서 `gcp-vm` 이 **Idle** 이어야 정상.
+runner 가 없으면 임시로 VM 에서 직접 배포: `cd ~/ad_service && git pull && ./scripts/deploy.sh`
+등록/상주 설정은 `docs/deployment.md` §1.
+
+---
+
+## 9. 전체 재기동 (최후의 수단)
 
 ```bash
 $COMPOSE down
