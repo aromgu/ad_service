@@ -11,9 +11,11 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from loguru import logger
 from starlette.concurrency import run_in_threadpool
 
 from ad_service.api.errors import APIError
+from ad_service.api.metrics import JOB_DURATION, JOBS_IN_PROGRESS, JOBS_TOTAL
 from ad_service.api.pipeline import GenerationInput, GenerationPipeline
 from ad_service.api.schemas.generation import (
     ErrorBody,
@@ -81,10 +83,13 @@ async def run_job(
 ) -> None:
     """백그라운드 태스크. job 상태를 갱신하며 파이프라인을 돌린다."""
 
+    started = time.monotonic()
+    JOBS_IN_PROGRESS.inc()
     await store.update(request_id, state=JobState.PROCESSING, progress=0.1)
     try:
         result: GenerationResult = await run_in_threadpool(pipeline.generate, data, output_dir)
     except APIError as exc:
+        _finish(request_id, "failed", started)
         await store.update(
             request_id,
             state=JobState.FAILED,
@@ -93,6 +98,8 @@ async def run_job(
         )
         return
     except Exception as exc:  # noqa: BLE001 - job 실패는 삼켜서 상태로만 전달
+        logger.exception("job {} 실패", request_id)
+        _finish(request_id, "failed", started)
         await store.update(
             request_id,
             state=JobState.FAILED,
@@ -106,6 +113,7 @@ async def run_job(
         filename = {OutputType.BANNER: "banner.png"}.get(asset.type, f"{asset.type.value}.png")
         asset.url = f"{asset_url_prefix}/{filename}"
 
+    _finish(request_id, "done", started)
     await store.update(
         request_id,
         state=JobState.DONE,
@@ -113,3 +121,11 @@ async def run_job(
         result=result,
         finished_at=time.time(),
     )
+
+
+def _finish(request_id: str, status: str, started: float) -> None:
+    elapsed = time.monotonic() - started
+    JOBS_IN_PROGRESS.dec()
+    JOBS_TOTAL.labels(status=status).inc()
+    JOB_DURATION.observe(elapsed)
+    logger.info("job {} {} ({:.1f}s)", request_id, status, elapsed)

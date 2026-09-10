@@ -3,6 +3,7 @@
 #   docker compose -f docker/docker-compose.yml up -d --build api frontend   # API + 프론트
 #   docker compose -f docker/docker-compose.yml --profile gpu up api-gpu     # GPU 추론 서버
 #   docker compose -f docker/docker-compose.yml --profile triton up triton   # Triton
+#   docker compose -f docker/docker-compose.yml --profile monitoring up -d   # Prometheus + Grafana
 #
 # 떠돌이 컨테이너 정리하며 올리려면: up -d --build --remove-orphans
 
@@ -97,5 +98,33 @@ services:
               count: all
               capabilities: [gpu]
 
+  # 5. 모니터링 (선택). api 의 /metrics 를 스크레이프.
+  prometheus:
+    profiles: ["monitoring"]
+    image: prom/prometheus:v3.1.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+
+  grafana:
+    profiles: ["monitoring"]
+    image: grafana/grafana:11.4.0
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+    volumes:
+      - ../deploy/monitoring/grafana-datasource.yml:/etc/grafana/provisioning/datasources/ds.yml:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
 volumes:
   api-var:
+  prometheus-data:
+  grafana-data:

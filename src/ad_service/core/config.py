@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     environment: str = "development"
 
+    log_level: str = "INFO"
+    log_json: bool = False  # 운영에서 true → 한 줄 JSON 로그
+
     # CORS 허용 오리진. 콤마로 구분한 문자열. 기본은 개발용으로 전체 허용("*").
     cors_allow_origins: str = "*"
 
