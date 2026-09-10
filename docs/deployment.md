@@ -101,42 +101,12 @@ DEPLOY_SERVICES="api" ./scripts/deploy.sh
 
 ---
 
-## 3. 런북 (자주 나는 장애)
+## 3. 런북 (장애 대응)
 
-### 포트가 이미 사용 중 (`port is already allocated`)
-compose 밖에서 뜬 떠돌이 컨테이너가 원인일 때가 많다.
-```bash
-docker ps --filter publish=8000 --filter publish=8501
-docker rm -f <container>                       # 팀 확인 후
-docker compose -f docker/docker-compose.yml up -d --remove-orphans
-```
-포트 배정: 8000 api / 8501 frontend / 8001-8003 triton. `docker run` 수동 실행 금지, compose 로만.
+→ **[docs/runbook.md](runbook.md)** 참고.
 
-### 컨테이너가 계속 재시작
-```bash
-docker compose -f docker/docker-compose.yml logs --tail=100 api
-docker compose -f docker/docker-compose.yml ps
-```
-`.env` 파싱 에러, import 에러가 흔함. compose 는 `.env` 없어도 뜨도록 되어 있다(`required: false`).
-
-### GPU OOM (api-gpu / triton)
-```bash
-nvidia-smi                                     # 점유 프로세스 확인
-docker compose -f docker/docker-compose.yml --profile gpu down
-```
-L4 23GB 한 장 공유. 학습과 추론 서버를 동시에 띄우지 않는다.
-
-### runner 가 죽음 (Deploy 가 큐에서 안 빠짐)
-```bash
-systemctl --user status gh-runner              # 또는 sudo ./svc.sh status
-systemctl --user restart gh-runner
-```
-
-### 디스크 부족
-```bash
-docker system df
-docker system prune -af --volumes              # 주의: 미사용 볼륨까지 삭제
-```
+API 안뜸 / 포트 충돌 / job 실패·적체 / GPU OOM / 디스크 / 모니터링 / 전체 재기동,
+그리고 배포가 원인일 때의 롤백(아래 §2).
 
 ---
 
