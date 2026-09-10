@@ -20,6 +20,7 @@ dependencies = [
     "pyyaml>=6.0",
     "python-dotenv>=1.0",
     "loguru>=0.7",
+    "prometheus-fastapi-instrumentator>=7.0",
 ]
 
 [project.optional-dependencies]

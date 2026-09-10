@@ -47,8 +47,47 @@ htmlcov/
 # OS / IDE
 .DS_Store
 .idea/
-.vscode/
 *.swp
+
+images/ 
+
+# 추가
+*.pem
+*.key
+id_rsa
+*_key.json
+gcp_credentials.json
+*.csv
+*.jsonl
+*.pdf
+*.hwp
+*.docx
+*.xlsx
+!data/.gitkeep  # 빈 폴더 구조 유지를 위한 예외 처리
+*.log
+experiment_log.csv
+experiment_log.csv
+chroma/
+chroma_db/
+vector_db/
+*.parquet
+*.sqlite3
+*.faiss
+*.pkl
+cache/
+.cache/
+*.safetensors
+*.onnx
+*.py[cod]
+env/
+myenv/
+sprint-ai-*/
+.ipynb_checkpoints/
+
+# web/images 는 랜딩 데모·목업 결과가 쓰는 실제 콘텐츠라 커밋한다.
+# 위 images/ 규칙보다 뒤에 와야 하고, 디렉터리 자체를 먼저 되살려야 한다.
+!web/images/
+
 
 # Claude
 CLAUDE.md

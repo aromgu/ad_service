@@ -1,8 +1,14 @@
 # 로컬 개발용 compose.
-#   docker compose -f docker/docker-compose.yml up api          # CPU API 서버
-#   docker compose -f docker/docker-compose.yml --profile gpu up # GPU 추론 서버
-#   docker compose -f docker/docker-compose.yml --profile triton up triton
+#
+#   docker compose -f docker/docker-compose.yml up -d --build api frontend   # API + 프론트
+#   docker compose -f docker/docker-compose.yml --profile gpu up api-gpu     # GPU 추론 서버
+#   docker compose -f docker/docker-compose.yml --profile triton up triton   # Triton
+#   docker compose -f docker/docker-compose.yml --profile monitoring up -d   # Prometheus + Grafana
+#
+# 떠돌이 컨테이너 정리하며 올리려면: up -d --build --remove-orphans
+
 services:
+  # 1. 백엔드 API 서버 (CPU). MockPipeline 로 동작, 실제 모델은 api-gpu / triton.
   api:
     build:
       context: ..
@@ -11,14 +17,46 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - ../.env
+      - path: ../.env
+        required: false
+    environment:
+      AD_ENVIRONMENT: development
+      AD_OUTPUT_ROOT: /app/var/outputs
+      AD_UPLOAD_ROOT: /app/var/uploads
     volumes:
       - ../src:/app/src
       - ../configs:/app/configs
-      - ../data:/app/data
-    command: >
-      uvicorn ad_service.api.main:app --host 0.0.0.0 --port 8000 --reload
+      - ../data:/app/data:ro          # 입력 데이터셋은 읽기 전용
+      - api-var:/app/var              # 생성 결과/업로드 (쓰기)
+    command: uvicorn ad_service.api.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
 
+  # 2. 프론트엔드 (Streamlit).
+  frontend:
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
+    image: ad-service:frontend
+    ports:
+      - "8501:8501"
+    environment:
+      # frontend/app.py 는 이 값을 읽어 API 를 호출한다 (하드코딩 금지).
+      API_BASE_URL: http://api:8000/api/v1
+    volumes:
+      - ../frontend:/app
+    command: streamlit run app.py --server.address=0.0.0.0 --server.port=8501
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # 3. 백엔드 GPU 추론 서버.
   api-gpu:
     profiles: ["gpu"]
     build:
@@ -28,7 +66,8 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - ../.env
+      - path: ../.env
+        required: false
     volumes:
       - ../models/checkpoints:/app/models/checkpoints
       - ../data:/app/data
@@ -40,8 +79,7 @@ services:
               count: all
               capabilities: [gpu]
 
-  # NVIDIA Triton Inference Server (모델 서빙 전용).
-  # ../deploy/triton/model_repository 에 모델을 배치한 뒤 사용.
+  # 4. NVIDIA Triton Inference Server (모델 서빙 전용).
   triton:
     profiles: ["triton"]
     image: nvcr.io/nvidia/tritonserver:24.05-py3
@@ -59,3 +97,34 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+
+  # 5. 모니터링 (선택). api 의 /metrics 를 스크레이프.
+  prometheus:
+    profiles: ["monitoring"]
+    image: prom/prometheus:v3.1.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+
+  grafana:
+    profiles: ["monitoring"]
+    image: grafana/grafana:11.4.0
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+    volumes:
+      - ../deploy/monitoring/grafana-datasource.yml:/etc/grafana/provisioning/datasources/ds.yml:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  api-var:
+  prometheus-data:
+  grafana-data:
