@@ -50,11 +50,28 @@ def _mark_steps(steps: list[dict], active_key: str | None, *, finished: bool = F
     return out
 
 
+TYPE_LABEL = {"detail_page": "상세페이지", "blog": "블로그", "product_reg": "상품등록"}
+
+
+def _default_title(db, user_id: str, job_type: str) -> str:
+    """'상세페이지 1', '블로그 2' 처럼 타입별 순번을 붙인다. 사용자가 나중에 고칠 수 있다."""
+    label = TYPE_LABEL.get(job_type, "작업")
+    if job_type == "product_reg":
+        n = db.query(ProductDraft).filter(ProductDraft.user_id == user_id).count()
+    else:
+        n = (
+            db.query(Document)
+            .filter(Document.user_id == user_id, Document.type == job_type)
+            .count()
+        )
+    return f"{label} {n + 1}"
+
+
 def _save_document(db, job: Job, draft: DocumentDraft) -> str:
     doc = Document(
         user_id=job.user_id,
         type=job.type,
-        title=draft.title,
+        title=_default_title(db, job.user_id, job.type),
         sections=draft.sections,
         thumbnail_url=draft.thumbnail_url,
     )
@@ -81,6 +98,7 @@ def _save_product_draft(db, job: Job, data: ProductDraftData) -> ProductDraft:
     form = job.form or {}
     draft = ProductDraft(
         user_id=job.user_id,
+        title=_default_title(db, job.user_id, "product_reg"),
         analysis=data.analysis,
         description=data.description,
         image_urls=data.image_urls,

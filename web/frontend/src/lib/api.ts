@@ -97,10 +97,10 @@ export const api = {
   patchDocument: (id: string, patch: { title?: string; sections?: Section[] }) =>
     request<DocumentModel>(`/documents/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
   getMessages: (id: string) => request<ChatMessage[]>(`/documents/${id}/messages`),
-  chat: (id: string, message: string) =>
+  chat: (id: string, message: string, imageIds: string[] = []) =>
     request<{ messages: ChatMessage[]; document: DocumentModel }>(`/documents/${id}/chat`, {
       method: "POST",
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, image_ids: imageIds }),
     }),
 
   getProductDraft: (id: string) => request<ProductDraft>(`/product-drafts/${id}`),

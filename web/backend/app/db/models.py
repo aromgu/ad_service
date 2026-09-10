@@ -131,6 +131,8 @@ class ProductDraft(Base):
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
     # draft | registered
     status: Mapped[str] = mapped_column(String(20), default="draft", index=True)
+    # 내 작업 카드에 보이는 이름. 상품명과 별개로 사용자가 고칠 수 있다.
+    title: Mapped[str] = mapped_column(String(200), default="")
 
     # AI 분석 결과 요약 (4c 상단 배너)
     analysis: Mapped[dict] = mapped_column(JSON, default=dict)

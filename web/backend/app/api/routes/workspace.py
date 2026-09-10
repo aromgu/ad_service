@@ -59,7 +59,7 @@ def _title_of(job: Job, doc, draft) -> str:
     if doc is not None:
         return doc.title
     if draft is not None:
-        return draft.product_name or "상품 등록"
+        return draft.title or draft.product_name or "상품등록"
     form = job.form or {}
     return form.get("product_name") or form.get("topic") or "제목 없음"
 

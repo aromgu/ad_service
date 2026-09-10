@@ -1,8 +1,9 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 
 import { assetUrl } from "@/lib/env";
 import type { JobType, WorkspaceItem } from "@/lib/types";
@@ -11,6 +12,13 @@ export const TYPE_LABEL: Record<JobType, string> = {
   detail_page: "상세페이지",
   blog: "블로그",
   product_reg: "상품등록",
+};
+
+/** 타입마다 색을 달리해 카드만 봐도 무엇인지 바로 구분되게 한다. */
+const TYPE_STYLE: Record<JobType, string> = {
+  detail_page: "border-accent-line bg-accent-bg text-accent",
+  blog: "border-[#2C4A6E] bg-[#12233A] text-[#6BA5F0]",
+  product_reg: "border-[#2E5A45] bg-[#132A20] text-[#5FC08D]",
 };
 
 /** 카드를 누르면 가는 곳 — 결과 종류별 에디터/검토 화면. */
@@ -35,30 +43,35 @@ export function WorkCard({
   item,
   onDelete,
   onRetry,
+  onRename,
   retrying,
 }: {
   item: WorkspaceItem;
   onDelete: (item: WorkspaceItem) => void;
   onRetry: (item: WorkspaceItem) => void;
+  onRename: (item: WorkspaceItem, title: string) => void;
   retrying: boolean;
 }) {
   const href = itemHref(item);
   const running = item.status === "queued" || item.status === "running";
   const failed = item.status === "failed" || item.status === "canceled";
   const thumb = assetUrl(item.thumbnail_url);
+  const openable = href !== null && !running && !failed;
 
-  const body = (
-    <div
-      className="relative h-[280px] overflow-hidden"
-      style={{ background: running || failed ? "#1B1B21" : "var(--color-ph)" }}
-    >
-      {/* 생성된 페이지를 축소한 미리보기 — 텍스트는 막대로, 이미지 자리에는 실제 결과물 */}
-      <Preview
-        type={item.type}
-        thumb={running || failed ? null : thumb}
-        alt={item.title}
-        opacity={running ? 0.28 : failed ? 0.18 : 1}
-      />
+  const picture = (
+    <div className="relative aspect-[3/4] overflow-hidden bg-ph">
+      {!running && !failed && thumb ? (
+        <Image
+          src={thumb}
+          alt={item.title}
+          fill
+          sizes="(max-width:820px) 100vw, (max-width:1440px) 33vw, 25vw"
+          className="object-cover"
+          unoptimized
+        />
+      ) : (
+        <div className="size-full bg-[#1B1B21]" />
+      )}
 
       {running && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
@@ -66,7 +79,9 @@ export function WorkCard({
           <span className="text-[12.5px] font-semibold text-fg">
             생성 중… {Math.round(item.progress)}%
           </span>
-          <span className="text-[11.5px] text-muted">{remainingText(item) ?? "잠시만 기다려 주세요"}</span>
+          <span className="text-[11.5px] text-muted">
+            {remainingText(item) ?? "잠시만 기다려 주세요"}
+          </span>
         </div>
       )}
 
@@ -96,23 +111,22 @@ export function WorkCard({
   );
 
   return (
-    <li
-      title={item.title}
-      className="group relative flex flex-col overflow-hidden rounded-xl border border-line bg-surface transition-ui hover:border-line-soft"
-    >
-      {href && !running && !failed ? (
+    <li className="group relative flex flex-col overflow-hidden rounded-xl border border-line bg-surface transition-ui hover:border-line-soft">
+      <CardTitle title={item.title} onRename={(t) => onRename(item, t)} />
+
+      {openable ? (
         <Link href={href} aria-label={`${item.title} 열기`}>
-          {body}
+          {picture}
         </Link>
       ) : (
-        body
+        picture
       )}
 
       <button
         type="button"
         onClick={() => onDelete(item)}
         aria-label={`${item.title} 삭제`}
-        className="absolute top-2.5 right-2.5 hidden size-7 items-center justify-center rounded-lg border border-line bg-[rgba(11,11,15,.75)] text-fg transition-ui group-hover:flex hover:border-danger hover:text-danger"
+        className="absolute top-[46px] right-2.5 hidden size-7 items-center justify-center rounded-lg border border-line bg-[rgba(11,11,15,.75)] text-fg transition-ui group-hover:flex hover:border-danger hover:text-danger"
       >
         <Trash2 className="size-3.5" />
       </button>
@@ -121,7 +135,9 @@ export function WorkCard({
         <span className="truncate text-[12px] text-muted">
           {new Date(item.created_at).toLocaleDateString("ko-KR")}
         </span>
-        <span className="flex-none rounded-md border border-line px-[9px] py-[3px] text-[11px] text-muted">
+        <span
+          className={`flex-none rounded-md border px-2.5 py-1 text-[11.5px] font-semibold ${TYPE_STYLE[item.type]}`}
+        >
           {TYPE_LABEL[item.type]}
         </span>
       </div>
@@ -129,64 +145,56 @@ export function WorkCard({
   );
 }
 
-/**
- * 생성 결과를 축소한 미리보기.
- * 문단·제목은 회색 막대로, 이미지 블록 자리에는 실제 결과 이미지를 넣는다.
- * 타입마다 배치가 달라 카드만 봐도 무엇인지 구분된다.
- */
-function Preview({
-  type,
-  thumb,
-  alt,
-  opacity,
-}: {
-  type: JobType;
-  thumb: string | null;
-  alt: string;
-  opacity: number;
-}) {
-  const bar = (key: string, w: string, h: number, tone: "a" | "b" = "a", mt = 0) => (
-    <span
-      key={key}
-      className="block rounded"
-      style={{
-        width: w,
-        height: h,
-        marginTop: mt,
-        background: tone === "a" ? "var(--color-ph-2)" : "var(--color-ph-3)",
-      }}
-    />
-  );
+/** 카드 맨 위 제목. 누르면 그 자리에서 고칠 수 있다. */
+function CardTitle({ title, onRename }: { title: string; onRename: (t: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(title);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const slot = (key: string, h: number) => (
-    <span
-      key={key}
-      className="relative block overflow-hidden rounded-md"
-      style={{ height: h, background: "var(--color-ph-2)" }}
-    >
-      {thumb && (
-        <Image src={thumb} alt={alt} fill sizes="320px" className="object-cover" unoptimized />
-      )}
-    </span>
-  );
+  useEffect(() => {
+    if (editing) inputRef.current?.select();
+  }, [editing]);
 
-  // 각 타입의 실제 문서 구조를 따라간다 (상세페이지: 히어로 → 큰 이미지, 블로그: 제목 → 사진 → 본문)
-  const rows =
-    type === "blog"
-      ? [bar("b1", "44%", 8), slot("b2", 90), bar("b3", "80%", 14, "b"), bar("b4", "64%", 14, "b"), bar("b5", "100%", 60)]
-      : type === "product_reg"
-        ? [bar("p1", "52%", 8), slot("p2", 110), bar("p3", "70%", 14, "b"), bar("p4", "40%", 14, "b"), bar("p5", "100%", 44)]
-        : [
-            bar("d1", "60%", 8),
-            bar("d2", "88%", 16, "b"),
-            bar("d3", "70%", 16, "b"),
-            slot("d4", 120),
-            bar("d5", "50%", 8),
-          ];
+  const commit = () => {
+    setEditing(false);
+    const next = draft.trim();
+    if (next && next !== title) onRename(next);
+    else setDraft(title);
+  };
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+          if (e.key === "Escape") {
+            setDraft(title);
+            setEditing(false);
+          }
+        }}
+        maxLength={200}
+        aria-label="작업 이름"
+        className="w-full border-b border-line bg-inset px-3.5 py-3 text-[14px] font-semibold text-fg outline-none"
+      />
+    );
+  }
 
   return (
-    <div className="flex flex-col gap-2 p-[18px]" style={{ opacity }} aria-hidden={!thumb}>
-      {rows}
-    </div>
+    <button
+      type="button"
+      onClick={() => {
+        setDraft(title);
+        setEditing(true);
+      }}
+      title="이름 바꾸기"
+      className="flex w-full items-center gap-1.5 border-b border-line px-3.5 py-3 text-left transition-ui hover:bg-[#1b1b21]"
+    >
+      <span className="truncate text-[14px] font-semibold text-fg">{title}</span>
+      <Pencil className="size-3 flex-none text-dim opacity-0 transition-ui group-hover:opacity-100" />
+    </button>
   );
 }

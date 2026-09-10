@@ -108,6 +108,7 @@ export interface DocumentModel {
 }
 
 export interface ChatMeta {
+  images?: string[];
   toolSteps?: string[];
   askUser?: boolean;
   summaryCard?: { label: string; value: string }[];
@@ -158,6 +159,8 @@ export interface KcInfo {
 export interface ProductDraft {
   id: string;
   status: "draft" | "registered";
+  /** 내 작업 카드에 보이는 이름. 상품명(product_name)과 별개다. */
+  title: string;
   analysis: { image_count?: number; ocr_chars?: number; source?: string };
   description: string;
   image_urls: string[];
@@ -185,6 +188,7 @@ export interface ProductDraft {
 export type ProductDraftPatch = Partial<
   Pick<
     ProductDraft,
+    | "title"
     | "description"
     | "representative_image_url"
     | "product_name"

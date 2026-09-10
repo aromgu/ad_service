@@ -323,7 +323,11 @@ class MockProvider:
 
     # ---------- 채팅 수정 ----------
     def revise(
-        self, *, message: str, sections: list[dict[str, Any]]
+        self,
+        *,
+        message: str,
+        sections: list[dict[str, Any]],
+        images: list[ImageRef] | None = None,
     ) -> tuple[str, dict[str, Any], list[dict[str, Any]]]:
         """채팅 요청에 대한 (응답문, meta, 수정된 sections).
 
@@ -332,6 +336,29 @@ class MockProvider:
         """
         revised = [dict(s) for s in sections]
         head = next((s for s in revised if s["type"] == "headline"), None)
+
+        # 컴포저로 이미지를 올렸으면 문서에 이미지 블록으로 넣는다.
+        if images:
+            insert_at = next(
+                (i for i, s in enumerate(revised) if s["type"] == "note"), len(revised)
+            )
+            for img in images:
+                revised.insert(
+                    insert_at,
+                    {
+                        "id": _sid(),
+                        "type": "image",
+                        "visible": True,
+                        "content": {"url": img.url, "alt": img.filename or "추가한 사진", "height": 360},
+                    },
+                )
+                insert_at += 1
+            return (
+                f"올려주신 사진 {len(images)}장을 문서에 넣었어요. "
+                "위치나 크기를 바꾸려면 Edit 을 켜고 블록을 눌러 주세요.",
+                {"toolSteps": [f"Adding image ×{len(images)}"], "footer": f"{len(images)}개 블록 추가됨"},
+                revised,
+            )
 
         if any(k in message for k in ("짧", "줄여", "줄이")) and head:
             lines = list(head["content"].get("lines", []))

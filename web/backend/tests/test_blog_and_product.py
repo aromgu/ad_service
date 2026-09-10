@@ -30,7 +30,9 @@ def test_blog_flow(client, png_bytes):
 
     doc = client.get(f"/api/documents/{job['document_id']}").json()
     assert doc["type"] == "blog"
-    assert "캠핑용 접이식 미니 테이블" in doc["title"]
+    assert doc["title"].startswith("블로그 ")
+    # 주제는 본문 헤드라인에 들어간다
+    assert "캠핑용 접이식 미니 테이블" in " ".join(doc["sections"][1]["content"]["lines"])
     types = [s["type"] for s in doc["sections"]]
     assert "heading" in types and "paragraph" in types
 

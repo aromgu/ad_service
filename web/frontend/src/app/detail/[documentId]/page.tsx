@@ -14,8 +14,8 @@ export default function DetailEditorPage() {
     <EditorShell
       documentId={documentId}
       canvas={DETAIL_CANVAS}
-      styleChip="Modernist"
-      metric={() => "100%"}
+      docType="detail_page"
+      hrefFor={(id) => `/detail/${id}`}
       backTo="/detail/new"
       floatingCta={(doc) => (
         // 상세페이지 입력값·이미지를 그대로 상품등록으로 넘긴다 (4a 는 건너뛴다).

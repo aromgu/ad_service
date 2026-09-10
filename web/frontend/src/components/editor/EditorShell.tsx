@@ -1,17 +1,13 @@
 "use client";
 
-import {
-  ChevronDown,
-  LayoutTemplate,
-  type LucideIcon,
-  MousePointer2,
-  Undo2,
-} from "lucide-react";
+import { Download, type LucideIcon, PanelLeft, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ApiError, api } from "@/lib/api";
-import type { ChatMessage, DocumentModel, Section } from "@/lib/types";
+import { documentToHtml, download, safeFilename } from "@/lib/document-export";
+import { useEscape } from "@/lib/use-dismiss";
+import type { ChatMessage, DocumentModel, Section, WorkspaceItem } from "@/lib/types";
 
 import { ChatSidebar } from "./ChatSidebar";
 import { CanvasSize, DETAIL_CANVAS, DocumentCanvas } from "./DocumentCanvas";
@@ -22,12 +18,12 @@ export interface EditorShellProps {
   documentId: string;
   /** 문서 캔버스 치수 — 상세페이지와 블로그가 다르다 */
   canvas?: CanvasSize;
-  /** 좌측 컴포저 위 스타일 칩 라벨 */
-  styleChip: string;
-  /** 상단 바 좌측 문서명 옆에 붙는 보조 지표 (예: "100%", "1,412자") */
-  metric: (doc: DocumentModel | null) => string;
-  /** 상단 바에 추가할 버튼 (예: 블로그의 "HTML 복사") */
-  topBarExtra?: (doc: DocumentModel) => React.ReactNode;
+  /** 제목 드롭다운에 띄울 목록의 종류 */
+  docType: "detail_page" | "blog";
+  /** 이 종류의 다른 문서로 갈 때 쓸 경로 */
+  hrefFor: (id: string) => string;
+  /** 상단 바 좌측에 붙는 보조 지표 (예: "1,412자") */
+  metric?: (doc: DocumentModel | null) => string;
   /** 보기 모드에서만 뜨는 우하단 플로팅 CTA */
   floatingCta?: (doc: DocumentModel) => React.ReactNode;
   /** 오류 시 돌아갈 입력 화면 */
@@ -41,9 +37,9 @@ export interface EditorShellProps {
 export function EditorShell({
   documentId,
   canvas = DETAIL_CANVAS,
-  styleChip,
+  docType,
+  hrefFor,
   metric,
-  topBarExtra,
   floatingCta,
   backTo,
 }: EditorShellProps) {
@@ -56,8 +52,14 @@ export function EditorShell({
   const [sending, setSending] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [siblings, setSiblings] = useState<WorkspaceItem[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState<"html" | "png" | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const paperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!documentId) return;
@@ -78,7 +80,22 @@ export function EditorShell({
     return () => {
       alive = false;
     };
-  }, [documentId]);
+  }, [documentId, reloadKey]);
+
+  // 제목 드롭다운에 띄울 같은 종류의 다른 문서들
+  useEffect(() => {
+    let alive = true;
+    api
+      .workspace(docType)
+      .then((items) => {
+        if (!alive) return;
+        setSiblings(items.filter((i) => i.document_id && i.document_id !== documentId));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [docType, documentId]);
 
   /** 섹션 변경 → 낙관적 반영 후 디바운스 저장. */
   const commitSections = useCallback(
@@ -120,7 +137,7 @@ export function EditorShell({
     }
   };
 
-  const send = async (text: string) => {
+  const send = async (text: string, imageIds: string[] = []) => {
     setSending(true);
     const optimistic: ChatMessage = {
       id: `tmp-${Date.now()}`,
@@ -131,7 +148,7 @@ export function EditorShell({
     };
     setMessages((prev) => [...prev, optimistic]);
     try {
-      const res = await api.chat(documentId, text);
+      const res = await api.chat(documentId, text, imageIds);
       setMessages((prev) => [...prev.filter((m) => m.id !== optimistic.id), ...res.messages]);
       setDoc(res.document);
     } catch (err) {
@@ -139,6 +156,41 @@ export function EditorShell({
       setError(err instanceof ApiError ? err.message : "메시지를 보내지 못했습니다.");
     } finally {
       setSending(false);
+    }
+  };
+
+  /** 채팅으로 고친 결과를 다시 불러온다. */
+  const refresh = async () => {
+    setRefreshing(true);
+    setReloadKey((k) => k + 1);
+    setTimeout(() => setRefreshing(false), 500);
+  };
+
+  const exportAs = async (kind: "html" | "png") => {
+    if (!doc || exporting) return;
+    setExporting(kind);
+    setError(null);
+    try {
+      const name = safeFilename(doc.title);
+      if (kind === "html") {
+        download(`${name}.html`, new Blob([documentToHtml(doc)], { type: "text/html" }));
+      } else {
+        if (!paperRef.current) throw new Error("문서 영역을 찾을 수 없습니다.");
+        const { toBlob } = await import("html-to-image");
+        const blob = await toBlob(paperRef.current, {
+          pixelRatio: 2,
+          backgroundColor: "#F7F7F3",
+          cacheBust: true,
+        });
+        if (!blob) throw new Error("이미지를 만들지 못했습니다.");
+        download(`${name}.png`, blob);
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? `저장에 실패했습니다: ${err.message}` : "저장에 실패했습니다.",
+      );
+    } finally {
+      setExporting(null);
     }
   };
 
@@ -158,23 +210,36 @@ export function EditorShell({
 
   return (
     <div className="flex h-screen">
-      <ChatSidebar
-        title={doc?.title ?? "문서"}
-        styleChip={styleChip}
-        messages={messages}
-        sending={sending}
-        onSend={send}
-      />
+      {sidebarOpen && (
+        <ChatSidebar
+          title={doc?.title ?? "문서"}
+          siblings={siblings}
+          onPickSibling={(item) => router.push(hrefFor(item.document_id!))}
+          onToggle={() => setSidebarOpen(false)}
+          messages={messages}
+          sending={sending}
+          onSend={send}
+          onUploadImage={async (file) => (await api.uploadImages([file]))[0]}
+        />
+      )}
 
       <main className="flex min-w-0 flex-1 flex-col bg-canvas">
         <div className="flex h-[52px] items-center justify-between gap-4 border-b border-line bg-ink px-[18px]">
           <div className="flex items-center gap-3">
-            <IconButton label="실행취소 / 히스토리" icon={Undo2} />
-            <IconButton label="레이아웃" icon={LayoutTemplate} />
-            <span className="flex items-center gap-1 text-[13px] text-fg">
-              {doc?.title ?? "…"}
-              <ChevronDown className="size-3.5 text-muted" />
-            </span>
+            {!sidebarOpen && (
+              <IconButton
+                label="사이드바 펼치기"
+                icon={PanelLeft}
+                onClick={() => setSidebarOpen(true)}
+              />
+            )}
+            <IconButton
+              label="최신 수정본 불러오기"
+              icon={RefreshCw}
+              onClick={refresh}
+              spinning={refreshing}
+            />
+            <span className="text-[13px] text-fg">{doc?.title ?? "…"}</span>
             {saveState !== "idle" && (
               <span className="text-[11.5px] text-dim">
                 {saveState === "saving"
@@ -186,8 +251,7 @@ export function EditorShell({
             )}
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-[12.5px] text-muted">{metric(doc)}</span>
-            <IconButton label="커서 도구" icon={MousePointer2} />
+            {metric && <span className="text-[12.5px] text-muted">{metric(doc)}</span>}
             <button
               type="button"
               aria-pressed={editMode}
@@ -203,30 +267,25 @@ export function EditorShell({
             >
               Edit
             </button>
-            {doc && topBarExtra?.(doc)}
-            <button
-              type="button"
-              className="rounded-lg bg-ph px-3.5 py-1.5 text-[12.5px] text-fg transition-ui hover:brightness-125"
-            >
-              Share
-            </button>
-            <span className="block size-[26px] rounded-full bg-ph-3" aria-hidden />
+            <DownloadMenu disabled={!doc} busy={exporting} onPick={exportAs} />
           </div>
         </div>
 
         <div className="relative min-h-0 flex-1">
           <div className="flex h-full justify-center overflow-auto pt-9">
             {doc ? (
-              <DocumentCanvas
-                sections={doc.sections}
-                size={canvas}
-                editMode={editMode}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-                onPatchContent={patchContent}
-                onDelete={deleteSection}
-                onReplaceImage={replaceImage}
-              />
+              <div ref={paperRef}>
+                <DocumentCanvas
+                  sections={doc.sections}
+                  size={canvas}
+                  editMode={editMode}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
+                  onPatchContent={patchContent}
+                  onDelete={deleteSection}
+                  onReplaceImage={replaceImage}
+                />
+              </div>
             ) : (
               <div
                 className="h-[600px] rounded-[4px] border border-paper-line bg-paper"
@@ -251,15 +310,74 @@ export function EditorShell({
   );
 }
 
-function IconButton({ label, icon: Icon }: { label: string; icon: LucideIcon }) {
+function IconButton({
+  label,
+  icon: Icon,
+  onClick,
+  spinning,
+}: {
+  label: string;
+  icon: LucideIcon;
+  onClick?: () => void;
+  spinning?: boolean;
+}) {
   return (
     <button
       type="button"
+      onClick={onClick}
       aria-label={label}
       title={label}
       className="flex size-6 items-center justify-center rounded-md border border-line text-muted transition-ui hover:border-line-soft hover:bg-[#1b1b21] hover:text-fg"
     >
-      <Icon className="size-3.5" />
+      <Icon className={`size-3.5 ${spinning ? "spin-1s" : ""}`} />
     </button>
+  );
+}
+
+/** HTML / PNG 로 내려받기. */
+function DownloadMenu({
+  disabled,
+  busy,
+  onPick,
+}: {
+  disabled: boolean;
+  busy: "html" | "png" | null;
+  onPick: (kind: "html" | "png") => void;
+}) {
+  const [open, setOpen] = useState(false);
+  useEscape(open, () => setOpen(false));
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        disabled={disabled || busy !== null}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex items-center gap-1.5 rounded-lg bg-ph px-3.5 py-1.5 text-[12.5px] text-fg transition-ui hover:brightness-125 disabled:opacity-40"
+      >
+        <Download className="size-3.5" />
+        {busy ? "저장 중…" : "Download"}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute top-full right-0 z-20 mt-1.5 w-[150px] overflow-hidden rounded-[10px] border border-line bg-surface py-1.5">
+            {(["html", "png"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  onPick(k);
+                }}
+                className="block w-full px-3 py-2 text-left text-[12.5px] text-fg transition-ui hover:bg-[#1b1b21]"
+              >
+                {k === "html" ? "HTML 파일로" : "PNG 이미지로"}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
   );
 }

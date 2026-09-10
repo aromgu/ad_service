@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -16,11 +17,19 @@ DbSession = Annotated[Session, Depends(get_db)]
 
 def _get_or_create_demo_user(db: Session) -> User:
     user = db.query(User).filter(User.email == DEMO_EMAIL).one_or_none()
-    if user is None:
-        user = User(email=DEMO_EMAIL, name=DEMO_NAME, password_hash=None)
-        db.add(user)
+    if user is not None:
+        return user
+
+    user = User(email=DEMO_EMAIL, name=DEMO_NAME, password_hash=None)
+    db.add(user)
+    try:
         db.commit()
-        db.refresh(user)
+    except IntegrityError:
+        # 빈 DB 에 첫 요청이 동시에 여러 개 들어오면 한 쪽만 INSERT 에 성공한다.
+        # 진 쪽은 실패가 아니라 이미 만들어진 계정을 다시 읽으면 된다.
+        db.rollback()
+        return db.query(User).filter(User.email == DEMO_EMAIL).one()
+    db.refresh(user)
     return user
 
 

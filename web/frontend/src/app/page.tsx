@@ -25,8 +25,8 @@ const STEPS = [
 
 export default function LandingPage() {
   // 데모 패널의 before/after 는 web/images 의 실제 촬영본과 생성 결과물.
-  const before = assetUrl("/static/images/serum_real1.jpg");
-  const after = assetUrl("/static/images/serum_gen1.png");
+  const before = assetUrl("/static/images/serum_real3.jpg");
+  const after = assetUrl("/static/images/serum_gen4.png");
 
   return (
     <>
@@ -69,7 +69,7 @@ export default function LandingPage() {
             제품 사진 1장만 있으면 썸네일, 상세페이지를 한 번에 제작하고 상품 등록까지!
           </div>
           <div className="grid grid-cols-[1fr_140px_1fr] items-center gap-7 px-12 py-11">
-            <div className="w-full overflow-hidden rounded-xl border border-line bg-footer">
+            <div className="mx-auto w-full max-w-[400px] overflow-hidden rounded-xl border border-line bg-footer">
               <div className="flex gap-1.5 border-b border-line px-3 py-2.5">
                 <span className="size-2 rounded-full bg-ph" />
                 <span className="size-2 rounded-full bg-ph" />
@@ -79,7 +79,7 @@ export default function LandingPage() {
                 src={before}
                 alt="휴대폰으로 찍은 제품 사진"
                 label="휴대폰으로 찍은 제품 사진"
-                height={460}
+                ratio="3 / 4"
               />
             </div>
 
@@ -88,13 +88,15 @@ export default function LandingPage() {
               <span className="text-[12px]">3초 소요</span>
             </div>
 
-            <Placeholder
-              src={after}
-              alt="AI가 만든 상품 연출컷"
-              label="AI가 만든 상품 연출컷"
-              height={500}
-              rounded
-            />
+            <div className="mx-auto w-full max-w-[400px]">
+              <Placeholder
+                src={after}
+                alt="AI가 만든 상품 연출컷"
+                label="AI가 만든 상품 연출컷"
+                ratio="29 / 36"
+                rounded
+              />
+            </div>
           </div>
         </div>
       </section>
@@ -138,18 +140,22 @@ export default function LandingPage() {
   );
 }
 
-/** 이미지가 있으면 이미지를, 없으면(백엔드 미기동) 회색 슬롯을 보여준다. */
+/**
+ * 이미지가 있으면 이미지를, 없으면(백엔드 미기동) 회색 슬롯을 보여준다.
+ * 높이를 고정하지 않고 원본 비율(`ratio`)을 그대로 쓴다 — 고정 높이면
+ * 세로 사진의 위아래가 잘린다.
+ */
 function Placeholder({
   src,
   alt,
   label,
-  height,
+  ratio,
   rounded,
 }: {
   src: string | null;
   alt: string;
   label: string;
-  height: number;
+  ratio: string;
   rounded?: boolean;
 }) {
   return (
@@ -157,10 +163,10 @@ function Placeholder({
       className={`relative flex items-center justify-center overflow-hidden bg-ph text-[13px] text-dim ${
         rounded ? "rounded-xl" : ""
       }`}
-      style={{ height }}
+      style={{ aspectRatio: ratio }}
     >
       {src ? (
-        <Image src={src} alt={alt} fill sizes="480px" className="object-cover" unoptimized />
+        <Image src={src} alt={alt} fill sizes="400px" className="object-cover" unoptimized />
       ) : (
         label
       )}

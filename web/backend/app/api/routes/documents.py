@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, status
 
 from app.api.deps import CurrentUser, DbSession
-from app.db.models import ChatMessage, Document
+from app.db.models import Asset, ChatMessage, Document
+from app.generation.base import ImageRef
 from app.generation.registry import get_provider
 from app.schemas.common import (
     ChatMessageOut,
@@ -52,10 +53,33 @@ def chat(doc_id: str, payload: ChatRequest, user: CurrentUser, db: DbSession) ->
     """좌측 채팅으로 문서 수정 요청. 목업 규칙 기반 응답."""
     doc = _get_owned(db, doc_id, user.id)
 
-    user_msg = ChatMessage(document_id=doc.id, role="user", content=payload.message, meta={})
+    images: list[ImageRef] = []
+    if payload.image_ids:
+        rows = (
+            db.query(Asset)
+            .filter(Asset.id.in_(payload.image_ids), Asset.user_id == user.id)
+            .all()
+        )
+        by_id = {a.id: a for a in rows}
+        missing = [i for i in payload.image_ids if i not in by_id]
+        if missing:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "올린 이미지를 찾을 수 없습니다.")
+        images = [
+            ImageRef(id=i, url=by_id[i].url, filename=by_id[i].filename)
+            for i in payload.image_ids
+        ]
+
+    user_msg = ChatMessage(
+        document_id=doc.id,
+        role="user",
+        content=payload.message,
+        meta={"images": [i.url for i in images]} if images else {},
+    )
     db.add(user_msg)
 
-    reply, meta, sections = get_provider().revise(message=payload.message, sections=doc.sections)
+    reply, meta, sections = get_provider().revise(
+        message=payload.message, sections=doc.sections, images=images
+    )
     doc.sections = sections
     ai_msg = ChatMessage(document_id=doc.id, role="assistant", content=reply, meta=meta)
     db.add(ai_msg)

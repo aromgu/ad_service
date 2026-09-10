@@ -32,7 +32,7 @@ def test_retry_creates_new_job_with_same_input(client, png_bytes, sample_form):
 
     # 같은 입력값으로 같은 결과가 나온다
     doc = client.get(f"/api/documents/{done['document_id']}").json()
-    assert sample_form["product_name"] in doc["title"]
+    assert sample_form["product_name"] in doc["sections"][0]["content"]["text"]
 
     # 원본 작업도 목록에 남아 있다
     ws = client.get("/api/workspace").json()
@@ -90,9 +90,84 @@ def test_workspace_item_shape_for_cards(client, png_bytes, sample_form):
 
 def test_workspace_newest_first(client, png_bytes, sample_form):
     ids = _upload(client, png_bytes, 1)
+    made = []
     for name in ("첫 번째", "두 번째"):
-        _wait(client, client.post("/api/jobs", json={
+        job = _wait(client, client.post("/api/jobs", json={
             "type": "detail_page", "form": {**sample_form, "product_name": name},
             "image_ids": ids}).json()["id"])
-    titles = [i["title"] for i in client.get("/api/workspace").json()]
-    assert titles.index("두 번째 상세페이지") < titles.index("첫 번째 상세페이지")
+        made.append(job["id"])
+    order = [i["job_id"] for i in client.get("/api/workspace").json()]
+    assert order.index(made[1]) < order.index(made[0]), "최근 것이 위에 와야 한다"
+
+
+# ---------------- 카드 제목 (내 작업 5a) ----------------
+def test_default_titles_are_numbered_per_type(client, png_bytes, sample_form):
+    ids = _upload(client, png_bytes, 1)
+    for _ in range(2):
+        _wait(client, client.post("/api/jobs", json={
+            "type": "detail_page", "form": sample_form, "image_ids": ids}).json()["id"])
+    _wait(client, client.post("/api/jobs", json={
+        "type": "blog", "form": {"topic": "제목 확인", "style": "기본 블로그"},
+        "image_ids": ids}).json()["id"])
+    _wait(client, client.post("/api/jobs", json={
+        "type": "product_reg", "form": {"submit_mode": "auto"}, "image_ids": ids}).json()["id"])
+
+    titles = {i["title"] for i in client.get("/api/workspace").json()}
+    assert {"상세페이지 1", "상세페이지 2", "블로그 1", "상품등록 1"} <= titles, titles
+
+
+def test_titles_are_editable(client, png_bytes, sample_form):
+    ids = _upload(client, png_bytes, 1)
+    doc_job = _wait(client, client.post("/api/jobs", json={
+        "type": "detail_page", "form": sample_form, "image_ids": ids}).json()["id"])
+    reg_job = _wait(client, client.post("/api/jobs", json={
+        "type": "product_reg", "form": {"submit_mode": "auto"}, "image_ids": ids}).json()["id"])
+
+    client.patch(f"/api/documents/{doc_job['document_id']}", json={"title": "내가 고친 이름"})
+    client.patch(f"/api/product-drafts/{reg_job['product_draft_id']}", json={"title": "등록건 A"})
+
+    titles = {i["title"] for i in client.get("/api/workspace").json()}
+    assert "내가 고친 이름" in titles and "등록건 A" in titles
+
+
+def test_product_title_is_separate_from_product_name(client, png_bytes):
+    """카드 제목을 바꿔도 실제 상품명은 그대로여야 한다."""
+    ids = _upload(client, png_bytes, 1)
+    job = _wait(client, client.post("/api/jobs", json={
+        "type": "product_reg", "form": {"submit_mode": "review"}, "image_ids": ids}).json()["id"])
+    before = client.get(f"/api/product-drafts/{job['product_draft_id']}").json()["product_name"]
+    after = client.patch(f"/api/product-drafts/{job['product_draft_id']}",
+                         json={"title": "카드 이름만 변경"}).json()
+    assert after["title"] == "카드 이름만 변경"
+    assert after["product_name"] == before
+
+
+# ---------------- 채팅으로 이미지 첨부 (에디터 10번) ----------------
+def test_chat_image_is_inserted_into_document(client, png_bytes, sample_form):
+    ids = _upload(client, png_bytes, 1)
+    job = _wait(client, client.post("/api/jobs", json={
+        "type": "detail_page", "form": sample_form, "image_ids": ids}).json()["id"])
+    doc_id = job["document_id"]
+    before = len([s for s in client.get(f"/api/documents/{doc_id}").json()["sections"]
+                  if s["type"] == "image"])
+
+    new_ids = _upload(client, png_bytes, 2)
+    res = client.post(f"/api/documents/{doc_id}/chat",
+                      json={"message": "이 사진들 넣어줘", "image_ids": new_ids}).json()
+
+    sections = res["document"]["sections"]
+    after = [s for s in sections if s["type"] == "image"]
+    assert len(after) == before + 2
+    # note 블록(문서 끝 안내) 앞에 들어가야 한다
+    assert sections[-1]["type"] == "note"
+    # 사용자 메시지에 첨부 기록이 남는다
+    assert len(res["messages"][0]["meta"]["images"]) == 2
+
+
+def test_chat_rejects_unknown_image(client, png_bytes, sample_form):
+    ids = _upload(client, png_bytes, 1)
+    job = _wait(client, client.post("/api/jobs", json={
+        "type": "detail_page", "form": sample_form, "image_ids": ids}).json()["id"])
+    r = client.post(f"/api/documents/{job['document_id']}/chat",
+                    json={"message": "x", "image_ids": ["nope"]})
+    assert r.status_code == 400

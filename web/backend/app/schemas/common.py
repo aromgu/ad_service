@@ -187,6 +187,8 @@ class ChatMessageOut(ORMModel):
 
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
+    # 컴포저에서 올린 이미지. 문서에 새 이미지 블록으로 들어간다.
+    image_ids: list[str] = Field(default_factory=list, max_length=5)
 
 
 class ChatResponse(BaseModel):
@@ -230,6 +232,7 @@ class KcInfo(BaseModel):
 class ProductDraftOut(ORMModel):
     id: str
     status: str
+    title: str
     analysis: dict[str, Any]
     description: str
     image_urls: list[str]
@@ -257,6 +260,7 @@ class ProductDraftOut(ORMModel):
 class ProductDraftPatch(BaseModel):
     """4c 검토 화면의 부분 수정. 보낸 필드만 반영된다."""
 
+    title: str | None = Field(default=None, max_length=200)
     description: str | None = Field(default=None, max_length=4000)
     representative_image_url: str | None = None
     product_name: str | None = Field(default=None, max_length=200)

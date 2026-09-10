@@ -89,7 +89,9 @@ def test_full_generation_flow(client, png_bytes, sample_form):
     assert job["document_id"]
 
     doc = client.get(f"/api/documents/{job['document_id']}").json()
-    assert sample_form["product_name"] in doc["title"]
+    # 카드 제목은 "상세페이지 N" 형식. 상품명은 본문(eyebrow)에 들어간다.
+    assert doc["title"].startswith("상세페이지 ")
+    assert sample_form["product_name"] in doc["sections"][0]["content"]["text"]
     types = [s["type"] for s in doc["sections"]]
     assert types == ["eyebrow", "headline", "stat", "subclaim", "image", "note"]
     # 업로드한 이미지가 첫 번째 순서 그대로 문서에 들어간다.

@@ -69,6 +69,23 @@ export default function WorksPage() {
     }
   };
 
+  const rename = async (item: WorkspaceItem, title: string) => {
+    // 낙관적 반영 후 저장. 문서와 상품등록은 저장하는 곳이 다르다.
+    setItems((prev) =>
+      prev?.map((i) => (i.job_id === item.job_id ? { ...i, title } : i)) ?? null,
+    );
+    try {
+      if (item.type === "product_reg" && item.product_draft_id) {
+        await api.patchProductDraft(item.product_draft_id, { title });
+      } else if (item.document_id) {
+        await api.patchDocument(item.document_id, { title });
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "이름을 바꾸지 못했습니다.");
+      reload();
+    }
+  };
+
   const retry = async (item: WorkspaceItem) => {
     setRetryingId(item.job_id);
     setError(null);
@@ -132,7 +149,7 @@ export default function WorksPage() {
                 {Array.from({ length: 4 }).map((_, i) => (
                   <li
                     key={i}
-                    className="h-[330px] rounded-xl border border-line bg-surface"
+                    className="h-[520px] rounded-xl border border-line bg-surface"
                     aria-hidden
                   />
                 ))}
@@ -150,6 +167,7 @@ export default function WorksPage() {
                     item={item}
                     onDelete={remove}
                     onRetry={retry}
+                    onRename={rename}
                     retrying={retryingId === item.job_id}
                   />
                 ))}
