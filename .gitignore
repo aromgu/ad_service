@@ -47,5 +47,38 @@ htmlcov/
 # OS / IDE
 .DS_Store
 .idea/
-.vscode/
 *.swp
+images/ 
+
+# 추가
+*.pem
+*.key
+id_rsa
+*_key.json
+gcp_credentials.json
+*.csv
+*.jsonl
+*.pdf
+*.hwp
+*.docx
+*.xlsx
+!data/.gitkeep  # 빈 폴더 구조 유지를 위한 예외 처리
+*.log
+experiment_log.csv
+experiment_log.csv
+chroma/
+chroma_db/
+vector_db/
+*.parquet
+*.sqlite3
+*.faiss
+*.pkl
+cache/
+.cache/
+*.safetensors
+*.onnx
+*.py[cod]
+env/
+myenv/
+sprint-ai-*/
+.ipynb_checkpoints/
