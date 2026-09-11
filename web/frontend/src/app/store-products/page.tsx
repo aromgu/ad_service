@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { Loading } from "@/components/Loading";
 import { TopNav } from "@/components/TopNav";
 import { ButtonLink } from "@/components/ui/Button";
 import { ApiError, api } from "@/lib/api";
@@ -108,18 +109,7 @@ export default function StoreProductsPage() {
           )}
 
           {data === null ? (
-            <>
-              <span className="text-[12.5px] text-muted">불러오는 중…</span>
-              <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <li
-                    key={i}
-                    className="h-[92px] rounded-xl border border-line bg-surface"
-                    aria-hidden
-                  />
-                ))}
-              </ul>
-            </>
+            <Loading className="py-16" />
           ) : data.items.length === 0 ? (
             // 목록을 못 불러온 경우엔 '상품이 없다'고 말하지 않는다.
             !error && <EmptyState />

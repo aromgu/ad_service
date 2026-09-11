@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { Loading } from "@/components/Loading";
 import { TopNav } from "@/components/TopNav";
 import { ApiError, api } from "@/lib/api";
 import { assetUrl } from "@/lib/env";
@@ -65,7 +66,7 @@ export default function ProductDonePage() {
       <>
         <TopNav />
         <div className="flex justify-center px-6 pt-[100px]">
-          <div className="h-[420px] w-full max-w-[560px] rounded-xl border border-line bg-inset" />
+          <Loading />
         </div>
       </>
     );

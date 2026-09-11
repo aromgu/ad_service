@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { Loading } from "@/components/Loading";
 import { TopNav } from "@/components/TopNav";
 import { Field, RequiredMark, Select, TextArea, TextInput } from "@/components/ui/Field";
 import { ApiError, api } from "@/lib/api";
@@ -184,7 +185,7 @@ export function ProductDraftEditor() {
       <>
         <TopNav />
         <div className="flex justify-center px-10 pt-10">
-          <div className="h-[600px] w-full max-w-[940px] rounded-xl border border-line bg-inset" />
+          <Loading className="pt-24" />
         </div>
       </>
     );
@@ -228,8 +229,8 @@ export function ProductDraftEditor() {
             </div>
             <div className="flex gap-2.5 overflow-x-auto rounded-[10px] bg-ph p-2.5">
               {draft.image_urls.length === 0 && (
-                <div className="flex h-[300px] w-full items-center justify-center text-[13px] text-dim">
-                  상세페이지 이미지 미리보기
+                <div className="flex h-[120px] w-full items-center justify-center text-[13px] text-dim">
+                  등록된 이미지가 없어요
                 </div>
               )}
               {draft.image_urls.map((u) => (
@@ -266,7 +267,7 @@ export function ProductDraftEditor() {
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center text-[12px] text-dim">
-                    1000×1000
+                    대표 이미지 없음
                   </div>
                 )}
               </div>

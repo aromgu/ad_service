@@ -134,7 +134,8 @@ function GeneratingBody() {
         {job ? (
           <StepChecklist steps={job.steps} />
         ) : (
-          <div className="h-[248px] w-[420px] rounded-[10px] border border-line bg-inset" />
+          // 첫 상태가 오기 전 자리만 잡아 둔다 (화면이 튀지 않게). 회색 상자는 그리지 않는다.
+          <div className="h-[248px] w-[420px]" aria-hidden />
         )}
 
         {error && (
