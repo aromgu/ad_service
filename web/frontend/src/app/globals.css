@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------
+   디자인 토큰 — web/design-reference/README.md 의 Color 표와 1:1 대응.
+   값을 바꿀 일이 생기면 반드시 레퍼런스 문서와 함께 갱신할 것.
+------------------------------------------------------------------ */
+@theme {
+  --color-ink: #0b0b0f;          /* 페이지 배경 */
+  --color-surface: #16161c;      /* 카드 / 서피스 */
+  --color-inset: #101015;        /* 입력 필드, 서브카드 */
+  --color-sidebar: #0a0a0d;      /* 에디터 사이드바 */
+  --color-footer: #0f0f14;
+
+  --color-line: #2a2a33;         /* 기본 보더 */
+  --color-line-soft: #3a3a45;    /* 점선 드롭존 / 호버 보더 */
+
+  --color-fg: #e5e5ea;           /* 본문 텍스트 */
+  --color-muted: #8a8a94;        /* 보조 텍스트 */
+  --color-dim: #6a6a74;          /* 비활성 / 3차 텍스트 */
+
+  --color-ph: #23232b;           /* 플레이스홀더 블록 */
+  --color-ph-2: #33333d;
+  --color-ph-3: #3a3a45;
+
+  --color-accent: #9b6df3;       /* 액센트 텍스트 / 링크 */
+  --color-accent-bg: #1e1930;    /* 액센트 선택 상태 배경 */
+  --color-accent-line: #4a3a7a;  /* 액센트 선택 상태 보더 */
+  --color-violet: #7c3aed;
+  --color-blue: #3b82f6;
+
+  --color-danger: #f0525b;       /* 필수 표시 · 에러 */
+  --color-success: #2e7d5b;      /* 완료 체크 */
+
+  --color-canvas: #ededE8;       /* 에디터 캔버스 배경 */
+  --color-paper: #f7f7f3;        /* 생성된 문서 페이지 */
+  --color-paper-line: #dcdcd4;
+  --color-paper-ph: #deded6;
+  --color-paper-fg: #17171a;
+  --color-paper-body: #3a3a3f;
+  --color-paper-muted: #6a6a64;
+  --color-paper-eyebrow: #8a8a80;
+
+  --font-sans: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+/* 액센트 그라디언트는 primary CTA · 활성 내비 필 · 활성 필터 칩에만 쓴다. */
+@utility grad {
+  background-image: linear-gradient(135deg, var(--color-violet), var(--color-blue));
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    background: var(--color-ink);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  /* 포커스: 2px 액센트 아웃라인 + offset. 브라우저 기본 파란 링 금지. */
+  :focus-visible {
+    outline: 2px solid var(--color-violet);
+    outline-offset: 2px;
+  }
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+    color: inherit;
+  }
+  ::placeholder {
+    color: var(--color-dim);
+  }
+}
+
+@layer utilities {
+  /* 드롭섀도는 어디에도 쓰지 않는다 — 계층은 배경 명도 + 1px 보더로만. */
+  .transition-ui {
+    transition:
+      background-color 160ms ease-out,
+      border-color 160ms ease-out,
+      color 160ms ease-out,
+      filter 160ms ease-out,
+      opacity 160ms ease-out;
+  }
+  .spin-1s {
+    animation: spin 1s linear infinite;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

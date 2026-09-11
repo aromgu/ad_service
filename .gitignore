@@ -48,6 +48,7 @@ htmlcov/
 .DS_Store
 .idea/
 *.swp
+
 images/ 
 
 # 추가
@@ -82,3 +83,20 @@ env/
 myenv/
 sprint-ai-*/
 .ipynb_checkpoints/
+
+# 참고: 위 `images/` 규칙 때문에 예전엔 web/images/ 가 통째로 무시됐다.
+# 폴더 이름을 web-images 로 바꿔서 더는 걸리지 않는다 (예외 처리 불필요).
+
+
+# Claude
+CLAUDE.md
+
+# Web (frontend + backend) — ihhwang
+web/frontend/node_modules/
+web/frontend/.next/
+web/frontend/out/
+web/frontend/next-env.d.ts
+web/frontend/.vercel
+web/backend/data/*.db
+web/backend/uploads/*
+!web/**/.gitkeep
