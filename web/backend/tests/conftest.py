@@ -11,8 +11,8 @@ os.environ["UPLOAD_DIR"] = f"{_tmp}/uploads"
 os.environ["MOCK_DURATION_SECONDS"] = "0.5"
 os.environ["JWT_SECRET"] = "test-secret"
 os.environ["ALLOW_DEMO_USER"] = "true"
-# 테스트는 네이버 API 를 절대 호출하지 않는다. 키를 비우고 실등록도 끈다.
-os.environ["NAVER_REGISTER_LIVE"] = "false"
+# 테스트는 네이버 API 를 절대 호출하지 않는다. 키를 비워 두면 실수로 부르더라도 곧바로 실패한다.
+# 등록 성공 경로는 테스트에서 get_client 를 가짜 클라이언트로 바꿔 확인한다.
 os.environ["NAVER_CLIENT_ID"] = ""
 os.environ["NAVER_CLIENT_SECRET"] = ""
 

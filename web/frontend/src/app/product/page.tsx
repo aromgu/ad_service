@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 
 import { ImageDropzone } from "@/components/ImageDropzone";
 import { TopNav } from "@/components/TopNav";
@@ -25,10 +25,22 @@ const EMPTY_SHIPPING: ShippingSettings = {
 
 const MAX_IMAGES = 20;
 
+/** 쿼리로 넘어온 판매가. 숫자가 아니거나 0 이하면 없는 것으로 본다(4c 에서 입력). */
+function parsePrice(raw: string | null): number | null {
+  const n = Number(raw);
+  return raw && Number.isInteger(n) && n > 0 ? n : null;
+}
+
 function ProductInputBody() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   // 2c 에디터에서 "이 상세페이지로 상품등록"으로 넘어온 경우
-  const fromDocument = useSearchParams().get("from");
+  const fromDocument = searchParams.get("from");
+  // 2c 에디터 '가격 설정'에서 정한 판매가
+  const handoffPrice = parsePrice(searchParams.get("price"));
+  // 개발 모드 StrictMode 는 effect 를 두 번 돌린다. 막지 않으면 작업이 두 개 생기고
+  // 네이버에 같은 상품이 두 번 등록된다. ref 는 그 재마운트 사이에도 유지된다.
+  const handoffStarted = useRef<string | null>(null);
 
   const [images, setImages] = useState<PickedImage[]>([]);
   const [productInfo, setProductInfo] = useState("");
@@ -54,18 +66,24 @@ function ProductInputBody() {
    * 이미 상품명·이미지가 다 있으므로 바로 분석(4b) → 자동 등록으로 보낸다.
    */
   useEffect(() => {
-    if (!fromDocument) return;
-    let alive = true;
+    if (!fromDocument || handoffStarted.current === fromDocument) return;
+    handoffStarted.current = fromDocument;
     (async () => {
       try {
+        // 저장해 둔 배송 설정(CS 전화·택배사·반품비)을 그대로 쓴다.
+        const saved = await api.getShippingSettings().catch(() => null);
         const job = await api.createProductJob(
-          { product_info: "", shipping: EMPTY_SHIPPING, submit_mode: "auto" },
+          {
+            product_info: "",
+            shipping: { ...EMPTY_SHIPPING, ...(saved ?? {}) },
+            submit_mode: "auto",
+            price: handoffPrice,
+          },
           [],
           fromDocument,
         );
-        if (alive) router.replace(`/jobs/${job.id}?type=${job.type}`);
+        router.replace(`/jobs/${job.id}?type=${job.type}`);
       } catch (err) {
-        if (!alive) return;
         setHandoff(false);
         setError(
           err instanceof ApiError
@@ -74,10 +92,7 @@ function ProductInputBody() {
         );
       }
     })();
-    return () => {
-      alive = false;
-    };
-  }, [fromDocument, router]);
+  }, [fromDocument, handoffPrice, router]);
 
   const valid = useMemo(
     () => images.length > 0 && shipping.origin_address.trim() !== "",

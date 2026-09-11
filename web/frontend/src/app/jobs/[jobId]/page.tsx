@@ -32,10 +32,14 @@ const COPY: Record<JobType, { title: string; sub?: string; eta: string; backTo: 
   },
 };
 
-/** 완료 시 이동할 곳. 상품등록은 자동/검토 모드와 무관하게 등록 정보 화면으로 간다. */
+/**
+ * 완료 시 이동할 곳.
+ * 상품등록 자동 모드는 등록 완료 화면으로 간다. 등록이 실패했으면 그 화면이 사유가 보이는 4c 로 다시 보낸다.
+ */
 function destination(job: Job): string | null {
   if (job.type === "product_reg" && job.product_draft_id) {
-    return `/product/${job.product_draft_id}`;
+    const review = `/product/${job.product_draft_id}`;
+    return job.submit_mode === "auto" ? `${review}/done` : review;
   }
   if (!job.document_id) return null;
   return job.type === "blog" ? `/blog/${job.document_id}` : `/detail/${job.document_id}`;

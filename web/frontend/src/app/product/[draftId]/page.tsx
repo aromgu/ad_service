@@ -95,12 +95,12 @@ export default function ProductDraftPage() {
       // 아직 저장 안 된 수정이 있으면 먼저 반영한 뒤 등록한다.
       if (saveTimer.current) clearTimeout(saveTimer.current);
       await flush();
-      const registered = await api.registerProduct(draftId);
-      setDraft(registered);
-      setForceEdit(false);
+      await api.registerProduct(draftId);
+      // 결과는 완료 화면에서 보여 준다 — 이 화면 맨 위 배너는 스크롤에 가려 안 보인다.
+      // 이동하는 동안 버튼을 다시 누르면 같은 상품이 또 등록되므로 잠근 채로 둔다.
+      router.push(`/product/${draftId}/done`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "상품 등록에 실패했습니다.");
-    } finally {
       setRegistering(false);
     }
   }

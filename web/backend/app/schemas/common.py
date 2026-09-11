@@ -95,6 +95,8 @@ class ProductRegForm(BaseModel):
     # auto  — 4c 를 건너뛰고 분석 후 바로 등록
     # review— 4c 검토 화면을 거친다
     submit_mode: Literal["auto", "review"] = "review"
+    # 2c 에디터의 '가격 설정'에서 정한 판매가. 없으면 검토 화면(4c)에서 입력한다.
+    price: int | None = Field(default=None, ge=0)
 
 
 # 장수 상·하한은 라우터의 IMAGE_RULES 에서 판단한다 (사용자에게 보여줄 메시지가 타입마다 다르므로).

@@ -5,6 +5,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from app.core.config import SHARED_IMAGE_DIR, settings
+from app.core.korean import eul_reul
 from app.db.models import ProductDraft
 from app.naver import catalog
 from app.naver.client import NaverApiError, NaverCommerceClient
@@ -13,6 +14,10 @@ from app.naver.product_builder import build_notice, build_payload
 logger = logging.getLogger(__name__)
 
 _CONTENT_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif"}
+
+
+class MissingFieldsError(NaverApiError):
+    """등록 전 필수 입력이 빠졌을 때. 네이버를 호출하기 전에 걸러낸다."""
 
 
 @lru_cache
@@ -42,21 +47,29 @@ def _detail_html(draft: ProductDraft) -> str:
     return f"<div>{paragraphs or f'<p>{draft.product_name}</p>'}</div>"
 
 
+def validate(draft: ProductDraft) -> None:
+    """네이버가 반드시 요구하는 값이 있는지 본다. 검토 화면 등록과 자동 등록이 같이 쓴다."""
+    missing: list[str] = []
+    if not (draft.product_name or "").strip():
+        missing.append("상품명")
+    # 경로만 있고 ID 가 없으면 등록할 수 없다 — 카테고리 검색에서 골라야 ID 가 함께 저장된다.
+    if not (draft.selected_category or "").strip() or not (draft.selected_category_id or "").strip():
+        missing.append("카테고리")
+    if draft.price is None or draft.price <= 0:
+        missing.append("판매가")
+    if missing:
+        # 마지막 항목에만 조사를 붙인다. "상품명, 판매가를 먼저 입력해 주세요."
+        listed = ", ".join(missing[:-1] + [eul_reul(missing[-1])])
+        raise MissingFieldsError(f"{listed} 먼저 입력해 주세요.")
+
+
 def register(draft: ProductDraft) -> dict:
-    """등록 후 {originProductNo, smartstoreChannelProductNo} 를 돌려준다.
+    """스마트스토어에 실제로 등록하고 {originProductNo, smartstoreChannelProductNo} 를 돌려준다.
 
     실패는 NaverApiError 로 올려 보내 라우터가 사용자에게 그대로 보여준다.
+    상품번호를 받지 못했다면 등록된 게 아니므로 이것도 실패로 본다.
     """
-    if not draft.selected_category_id:
-        raise NaverApiError(
-            "네이버 카테고리를 선택해 주세요. 카테고리 검색에서 고르면 등록에 필요한 ID가 함께 저장됩니다."
-        )
-
-    if not settings.naver_register_live:
-        # 연습 모드 — 외부 호출을 하나도 하지 않는다. 테스트도 이 경로로 돈다.
-        logger.info("NAVER_REGISTER_LIVE=false — 실제 등록을 건너뜁니다")
-        return {"originProductNo": "", "smartstoreChannelProductNo": "", "dryRun": True}
-
+    validate(draft)
     client = get_client()
 
     # 1) 이미지를 네이버로 옮긴다. 외부 URL 직접 입력은 거부된다.
@@ -93,11 +106,17 @@ def register(draft: ProductDraft) -> dict:
     )
 
     try:
-        return client.register_product(payload)
+        result = client.register_product(payload)
     except NaverApiError as e:
         # 검색 태그는 상품명·카테고리와 겹치면 거부된다. 태그만 빼고 한 번 더 시도한다.
-        if e.status == 400 and "sellerTags" in (e.body or ""):
-            logger.info("검색 태그가 거부되어 태그 없이 재시도합니다")
-            payload["originProduct"]["detailAttribute"].pop("seoInfo", None)
-            return client.register_product(payload)
-        raise
+        if not (e.status == 400 and "sellerTags" in (e.body or "")):
+            raise
+        logger.info("검색 태그가 거부되어 태그 없이 재시도합니다")
+        payload["originProduct"]["detailAttribute"].pop("seoInfo", None)
+        result = client.register_product(payload)
+
+    if not result.get("originProductNo"):
+        raise NaverApiError(
+            "네이버가 상품번호를 돌려주지 않아 등록을 확인할 수 없습니다.", body=str(result)[:800]
+        )
+    return result

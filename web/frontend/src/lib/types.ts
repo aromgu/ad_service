@@ -50,6 +50,8 @@ export interface ProductRegForm {
   product_info: string;
   shipping: ShippingSettings;
   submit_mode: "auto" | "review";
+  /** 2c 에디터 '가격 설정'에서 정한 판매가 */
+  price?: number | null;
 }
 
 export interface Job {

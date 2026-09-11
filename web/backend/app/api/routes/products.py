@@ -3,11 +3,10 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.api.deps import CurrentUser, DbSession
-from app.core.korean import eul_reul
 from app.db.models import ProductDraft
 from app.naver import catalog as naver_catalog
 from app.naver.client import NaverApiError
-from app.naver.service import get_client
+from app.naver.service import MissingFieldsError, get_client
 from app.naver.service import register as naver_register
 from app.schemas.common import CategoryCandidate, ProductDraftOut, ProductDraftPatch
 
@@ -71,25 +70,15 @@ def register(draft_id: str, user: CurrentUser, db: DbSession) -> ProductDraft:
     """
     draft = _get_owned(db, draft_id, user.id)
 
-    missing: list[str] = []
-    if not draft.product_name.strip():
-        missing.append("상품명")
-    if not draft.selected_category.strip() or not draft.selected_category_id.strip():
-        missing.append("카테고리")
-    if draft.price is None or draft.price <= 0:
-        missing.append("판매가")
-    if missing:
-        # 마지막 항목에만 조사를 붙인다. "상품명, 판매가를 먼저 입력해 주세요."
-        listed = ", ".join(missing[:-1] + [eul_reul(missing[-1])])
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"{listed} 먼저 입력해 주세요.")
-
     try:
         result = naver_register(draft)
+    except MissingFieldsError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
     except NaverApiError as e:
         # 네이버가 알려준 이유를 그대로 보여준다 — 사용자가 직접 고칠 수 있는 정보다.
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(e)) from e
 
-    draft.naver_origin_product_no = str(result.get("originProductNo") or "")
+    draft.naver_origin_product_no = str(result["originProductNo"])
     draft.naver_channel_product_no = str(result.get("smartstoreChannelProductNo") or "")
     draft.status = "registered"
     draft.registered_at = datetime.now(timezone.utc)
