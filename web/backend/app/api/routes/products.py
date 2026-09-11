@@ -3,11 +3,13 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.api.deps import CurrentUser, DbSession
-from app.db.models import ProductDraft
+from app.db.models import Job, ProductDraft
 from app.naver import catalog as naver_catalog
 from app.naver.client import NaverApiError
-from app.naver.service import MissingFieldsError, get_client
+from app.naver.service import MissingFieldsError, WrongStateError, get_client
+from app.naver.service import delete as naver_delete
 from app.naver.service import register as naver_register
+from app.naver.service import update as naver_update
 from app.schemas.common import CategoryCandidate, ProductDraftOut, ProductDraftPatch
 
 router = APIRouter(prefix="/product-drafts", tags=["products"])
@@ -18,6 +20,20 @@ def _get_owned(db, draft_id: str, user_id: str) -> ProductDraft:
     if draft is None or draft.user_id != user_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "등록 정보를 찾을 수 없습니다.")
     return draft
+
+
+def _http_error(e: NaverApiError) -> HTTPException:
+    """빠진 입력 400, 상태가 맞지 않음 409, 스토어에 없는 상품 404, 그 밖의 네이버 실패 502."""
+    if isinstance(e, MissingFieldsError):
+        code = status.HTTP_400_BAD_REQUEST
+    elif isinstance(e, WrongStateError):
+        code = status.HTTP_409_CONFLICT
+    elif e.status == 404:
+        code = status.HTTP_404_NOT_FOUND
+    else:
+        # 네이버가 알려준 이유를 그대로 보여준다 — 사용자가 직접 고칠 수 있는 정보다.
+        code = status.HTTP_502_BAD_GATEWAY
+    return HTTPException(code, str(e))
 
 
 @router.get("/categories/search", response_model=list[CategoryCandidate])
@@ -44,7 +60,7 @@ def get_draft(draft_id: str, user: CurrentUser, db: DbSession) -> ProductDraft:
 def patch_draft(
     draft_id: str, payload: ProductDraftPatch, user: CurrentUser, db: DbSession
 ) -> ProductDraft:
-    """4c 검토 화면의 수정 저장. 등록 완료 후에도 '등록 내용 수정'으로 다시 들어올 수 있다."""
+    """4c 검토 화면의 수정 저장. 등록된 상품은 저장 후 '수정'을 눌러야 스토어에 반영된다."""
     draft = _get_owned(db, draft_id, user.id)
     for field, value in payload.model_dump(exclude_unset=True).items():
         if value is None:
@@ -72,11 +88,8 @@ def register(draft_id: str, user: CurrentUser, db: DbSession) -> ProductDraft:
 
     try:
         result = naver_register(draft)
-    except MissingFieldsError as e:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
     except NaverApiError as e:
-        # 네이버가 알려준 이유를 그대로 보여준다 — 사용자가 직접 고칠 수 있는 정보다.
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(e)) from e
+        raise _http_error(e) from e
 
     draft.naver_origin_product_no = str(result["originProductNo"])
     draft.naver_channel_product_no = str(result.get("smartstoreChannelProductNo") or "")
@@ -85,3 +98,38 @@ def register(draft_id: str, user: CurrentUser, db: DbSession) -> ProductDraft:
     db.commit()
     db.refresh(draft)
     return draft
+
+
+@router.post("/{draft_id}/update", response_model=ProductDraftOut)
+def update(draft_id: str, user: CurrentUser, db: DbSession) -> ProductDraft:
+    """등록된 상품에 검토 화면의 내용을 반영한다 (등록된 상품 관리 → 수정)."""
+    draft = _get_owned(db, draft_id, user.id)
+
+    try:
+        naver_update(draft)
+    except NaverApiError as e:
+        raise _http_error(e) from e
+
+    # 방금 보낸 설명이 스토어의 새 기준값이다. 다음에 설명을 안 고치면 상세 HTML 을 유지한다.
+    draft.analysis = {**(draft.analysis or {}), "naver_description": draft.description}
+    db.commit()
+    db.refresh(draft)
+    return draft
+
+
+@router.delete("/{draft_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete(draft_id: str, user: CurrentUser, db: DbSession) -> None:
+    """스마트스토어에서 상품을 삭제하고 로컬 기록도 지운다 (등록된 상품 관리 → 삭제)."""
+    draft = _get_owned(db, draft_id, user.id)
+
+    try:
+        naver_delete(draft)
+    except NaverApiError as e:
+        raise _http_error(e) from e
+
+    # 이 초안을 만든 작업도 지운다 — 남겨 두면 내 작업에 빈 카드로 다시 나타난다.
+    for job in db.query(Job).filter(Job.product_draft_id == draft.id).all():
+        db.delete(job)
+    db.flush()
+    db.delete(draft)
+    db.commit()

@@ -1,30 +1,6 @@
 import time
 
-from app.naver import service as naver_service
 from app.naver.client import NaverApiError
-
-
-class FakeNaverClient:
-    """네이버 대신 쓰는 가짜 클라이언트. 테스트가 실제 스토어에 상품을 만들면 안 된다."""
-
-    def __init__(self, result: dict | None = None):
-        self.result = (
-            {"originProductNo": 123, "smartstoreChannelProductNo": 456} if result is None else result
-        )
-
-    def upload_images(self, files):
-        return [f"https://shop-phinf.pstatic.net/fake/{name}" for name, _, _ in files]
-
-    def get_notice_fields(self, notice_type):
-        return []
-
-    def register_product(self, payload):
-        return self.result
-
-
-class RejectingNaverClient(FakeNaverClient):
-    def register_product(self, payload):
-        raise NaverApiError("상품 등록 실패 (400) 판매가를 확인해 주세요", status=400, body="{}")
 
 
 def _wait(client, job_id, timeout=20):
@@ -78,7 +54,7 @@ def test_blog_rejects_more_than_eight_images(client, png_bytes, sample_form):
 
 
 # ---------------- 상품등록 (4a → 4b → 4c) ----------------
-def test_product_review_flow(client, png_bytes, monkeypatch):
+def test_product_review_flow(client, png_bytes, fake_naver):
     """'직접 확인하고 등록' — 4c 를 거쳐야 등록된다."""
     ids = _upload(client, png_bytes, 2)
     form = {"product_info": "구성품 본체 1개 · 소재 캔버스", "submit_mode": "review",
@@ -118,14 +94,13 @@ def test_product_review_flow(client, png_bytes, monkeypatch):
     assert patched["selected_category_id"] == "50015341"
     assert len(patched["options"]) == 1
 
-    monkeypatch.setattr(naver_service, "get_client", lambda: FakeNaverClient())
     registered = client.post(f"/api/product-drafts/{draft['id']}/register").json()
     assert registered["status"] == "registered"
     assert registered["registered_at"]
     assert registered["naver_origin_product_no"] == "123"
 
 
-def test_product_register_failure_keeps_draft(client, png_bytes, monkeypatch):
+def test_product_register_failure_keeps_draft(client, png_bytes, fake_naver):
     """네이버가 거절하거나 상품번호를 주지 않으면 '등록됨'으로 표시하면 안 된다."""
     ids = _upload(client, png_bytes, 1)
     job = _wait(client, client.post("/api/jobs", json={
@@ -136,8 +111,15 @@ def test_product_register_failure_keeps_draft(client, png_bytes, monkeypatch):
     client.patch(f"/api/product-drafts/{draft_id}", json={
         "selected_category": "패션잡화 › 남성가방 › 에코백", "selected_category_id": "50015341"})
 
-    for fake in (RejectingNaverClient(), FakeNaverClient(result={})):
-        monkeypatch.setattr(naver_service, "get_client", lambda fake=fake: fake)
+    rejections = (
+        {"register_error": NaverApiError("상품 등록 실패 (400) 판매가를 확인해 주세요",
+                                         status=400, body="{}")},
+        # 성공 응답인데 상품번호가 없는 경우
+        {"register_error": None, "register_result": {}},
+    )
+    for change in rejections:
+        for key, value in change.items():
+            setattr(fake_naver, key, value)
         r = client.post(f"/api/product-drafts/{draft_id}/register")
         assert r.status_code == 502, r.json()
         draft = client.get(f"/api/product-drafts/{draft_id}").json()

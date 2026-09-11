@@ -12,6 +12,7 @@ import type {
   ProductRegForm,
   Section,
   ShippingSettings,
+  StoreProductPage,
   WorkspaceItem,
 } from "./types";
 
@@ -112,6 +113,16 @@ export const api = {
     }),
   registerProduct: (id: string) =>
     request<ProductDraft>(`/product-drafts/${id}/register`, { method: "POST" }),
+  /** 등록된 상품에 지금 내용을 반영한다 */
+  updateProduct: (id: string) =>
+    request<ProductDraft>(`/product-drafts/${id}/update`, { method: "POST" }),
+  /** 스마트스토어에서 삭제하고 로컬 기록도 지운다 */
+  deleteStoreProduct: (id: string) =>
+    request<void>(`/product-drafts/${id}`, { method: "DELETE" }),
+  storeProducts: (page = 1) => request<StoreProductPage>(`/store-products?page=${page}`),
+  /** 목록에서 고른 상품을 검토 화면에서 열 수 있게 초안으로 가져온다 */
+  openStoreProduct: (originProductNo: string) =>
+    request<ProductDraft>(`/store-products/${originProductNo}/open`, { method: "POST" }),
   searchCategories: (q: string) =>
     request<CategoryCandidate[]>(
       `/product-drafts/categories/search?q=${encodeURIComponent(q)}`,

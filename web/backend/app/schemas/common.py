@@ -264,6 +264,30 @@ class ProductDraftOut(ORMModel):
     updated_at: datetime
 
 
+# ---------- 등록된 상품 관리 ----------
+class StoreProduct(BaseModel):
+    """커머스 API 상품 목록의 한 줄. 네이버 응답을 화면에 필요한 만큼만 펼쳤다."""
+
+    origin_product_no: str
+    channel_product_no: str = ""
+    name: str = ""
+    # SALE · OUTOFSTOCK · SUSPENSION · WAIT …
+    status_type: str = ""
+    sale_price: int | None = None
+    stock_quantity: int | None = None
+    image_url: str | None = None
+    category_name: str = ""
+    registered_at: str | None = None
+    modified_at: str | None = None
+
+
+class StoreProductPage(BaseModel):
+    items: list[StoreProduct]
+    page: int
+    total: int
+    total_pages: int
+
+
 class ProductDraftPatch(BaseModel):
     """4c 검토 화면의 부분 수정. 보낸 필드만 반영된다."""
 

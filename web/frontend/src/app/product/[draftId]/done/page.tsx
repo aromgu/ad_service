@@ -9,10 +9,8 @@ import { useEffect, useState } from "react";
 import { TopNav } from "@/components/TopNav";
 import { ApiError, api } from "@/lib/api";
 import { assetUrl } from "@/lib/env";
+import { SELLER_CENTER_PRODUCTS } from "@/lib/naver";
 import type { ProductDraft } from "@/lib/types";
-
-// 판매자센터 상품 조회/수정. 스토어 주소를 몰라도 방금 등록한 상품을 여기서 볼 수 있다.
-const SELLER_CENTER_PRODUCTS = "https://sell.smartstore.naver.com/#/products/origin-list";
 
 /** 등록 완료 화면. 4c 의 등록 버튼과 자동 등록 모두 성공하면 여기로 온다. */
 export default function ProductDonePage() {
@@ -155,9 +153,9 @@ export default function ProductDonePage() {
             </a>
             <div className="grid grid-cols-3 gap-2.5">
               {[
-                { href: `/product/${draft.id}`, label: "등록 내용 보기·수정" },
+                { href: `/store-products/${draft.id}`, label: "등록 내용 보기·수정" },
                 { href: "/product", label: "새 상품 등록" },
-                { href: "/works", label: "내 작업" },
+                { href: "/store-products", label: "등록된 상품 관리" },
               ].map((l) => (
                 <Link
                   key={l.href}

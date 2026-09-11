@@ -102,18 +102,32 @@ def test_workspace_newest_first(client, png_bytes, sample_form):
 
 # ---------------- 카드 제목 (내 작업 5a) ----------------
 def test_default_titles_are_numbered_per_type(client, png_bytes, sample_form):
+    # 테스트끼리 DB 를 같이 쓰므로 '1번'이 남아 있다고 가정하지 않는다.
+    # (예: 스토어에 등록된 상품등록 1 은 내 작업에서 빠진다) 이 테스트가 만든 작업만 본다.
     ids = _upload(client, png_bytes, 1)
-    for _ in range(2):
+    detail_jobs = [
         _wait(client, client.post("/api/jobs", json={
-            "type": "detail_page", "form": sample_form, "image_ids": ids}).json()["id"])
-    _wait(client, client.post("/api/jobs", json={
+            "type": "detail_page", "form": sample_form, "image_ids": ids}).json()["id"])["id"]
+        for _ in range(2)
+    ]
+    blog_job = _wait(client, client.post("/api/jobs", json={
         "type": "blog", "form": {"topic": "제목 확인", "style": "기본 블로그"},
-        "image_ids": ids}).json()["id"])
-    _wait(client, client.post("/api/jobs", json={
-        "type": "product_reg", "form": {"submit_mode": "auto"}, "image_ids": ids}).json()["id"])
+        "image_ids": ids}).json()["id"])["id"]
+    product_job = _wait(client, client.post("/api/jobs", json={
+        "type": "product_reg", "form": {"submit_mode": "auto"}, "image_ids": ids}).json()["id"])["id"]
 
-    titles = {i["title"] for i in client.get("/api/workspace").json()}
-    assert {"상세페이지 1", "상세페이지 2", "블로그 1", "상품등록 1"} <= titles, titles
+    titles = {i["job_id"]: i["title"] for i in client.get("/api/workspace").json()}
+
+    def label_and_number(job_id: str) -> tuple[str, int]:
+        label, _, n = titles[job_id].rpartition(" ")
+        assert n.isdigit(), titles[job_id]
+        return label, int(n)
+
+    (first_label, first_n), (second_label, second_n) = map(label_and_number, detail_jobs)
+    assert first_label == second_label == "상세페이지"
+    assert second_n == first_n + 1, "같은 타입 안에서 순번이 1씩 올라간다"
+    assert label_and_number(blog_job)[0] == "블로그"
+    assert label_and_number(product_job)[0] == "상품등록"
 
 
 def test_titles_are_editable(client, png_bytes, sample_form):

@@ -15,6 +15,7 @@ const TABS = [
 export function TopNav() {
   const pathname = usePathname() ?? "/";
   const onWorks = pathname.startsWith("/works");
+  const onStore = pathname.startsWith("/store-products");
 
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-6 border-b border-line bg-ink px-7">
@@ -25,8 +26,8 @@ export function TopNav() {
 
       <nav className="flex items-center gap-1 rounded-full border border-line p-1">
         {TABS.map((tab) => {
-          // 내 작업은 특정 기능에 속하지 않으므로 그때는 세 탭 모두 비활성.
-          const active = !onWorks && tab.match.test(pathname);
+          // 내 작업·등록된 상품 관리는 특정 기능에 속하지 않으므로 그때는 세 탭 모두 비활성.
+          const active = !onWorks && !onStore && tab.match.test(pathname);
           return (
             <Link
               key={tab.href}
@@ -44,9 +45,12 @@ export function TopNav() {
         })}
       </nav>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2">
         <NavPill href="/works" active={onWorks}>
           내 작업
+        </NavPill>
+        <NavPill href="/store-products" active={onStore}>
+          등록된 상품 관리
         </NavPill>
       </div>
     </header>
