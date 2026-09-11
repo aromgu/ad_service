@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}} · 사진 기반 상세페이지 초안</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#e8e6e2;color:#292720;font-family:"Apple SD Gothic Neo","Noto Sans CJK KR","Malgun Gothic",sans-serif;word-break:keep-all;overflow-wrap:anywhere}
+.page{--paper:#f3f0e9;--accent:#514235;--ink:#302b26;max-width:860px;margin:0 auto;background:var(--paper);color:var(--ink)}
+.cosmetics{--paper:#fbf1f0;--accent:#9c1d2b;--ink:#4b1821}
+.status{background:#242520;color:#fff;padding:12px 32px;font-size:13px;display:flex;justify-content:space-between;gap:20px;letter-spacing:.04em}
+.brandline{padding:32px 50px 22px;display:flex;justify-content:space-between;border-bottom:1px solid #c9c0b4;font-size:12px;letter-spacing:.19em}
+.hero{text-align:center;padding:66px 46px 0}.eyebrow{font-size:12px;letter-spacing:.22em;color:var(--accent);margin:0 0 25px}
+h1{font-size:56px;line-height:1.16;letter-spacing:-.045em;font-weight:650;max-width:590px;margin:0 auto 24px;text-wrap:balance}
+.lead{font-size:18px;line-height:1.85;max-width:550px;margin:0 auto 40px;opacity:.85}
+.hero figure{margin:0 -46px}.hero img{width:100%;max-height:970px;object-fit:contain;display:block;background:var(--paper)}
+figcaption{font-size:12px;letter-spacing:.03em;opacity:.65;padding:17px 28px;text-align:left}
+.story{padding:80px 64px 70px;text-align:center}.rule{width:36px;height:1px;background:var(--accent);margin:0 auto 30px}
+h2{font-size:38px;line-height:1.35;letter-spacing:-.035em;margin:0 0 22px;text-wrap:balance}
+.story p{font-size:19px;line-height:1.85;max-width:560px;margin:0 auto}
+.items{margin:30px auto 0!important;font-size:13px!important;opacity:.65}
+.points{padding:52px 54px;background:#fffdf9}.cosmetics .points{background:#fffafb}
+.point{display:grid;grid-template-columns:44px 1fr;column-gap:22px;padding:28px 0;border-bottom:1px solid #e4dcd6}.point:last-child{border:0}
+.number{grid-row:span 2;font-family:Georgia,serif;font-size:25px;color:var(--accent)}
+h3{font-size:24px;line-height:1.35;margin:0 0 12px;letter-spacing:-.03em}.point p{font-size:17px;line-height:1.85;margin:0;max-width:550px}
+.details{padding:75px 40px 62px}.details header{text-align:center;margin-bottom:34px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.grid figure{margin:0}.crop{aspect-ratio:.83;overflow:hidden;position:relative;background:#ebe8e1}
+.crop img{position:absolute;max-width:none;width:170%;height:auto;left:-35%;top:-15%}
+.outfit .second img{width:175%;left:-36%;top:-106%}.cosmetics .crop img{width:190%;left:-43%;top:-12%}
+.cosmetics .second img{width:200%;left:-46%;top:-64%}.grid figcaption{padding:15px 0;font-size:12px}
+.caption-note{font-size:13px;line-height:1.8;opacity:.65;margin:15px 0 0;text-align:center}
+.closing{padding:64px 70px 76px;background:var(--accent);color:#fff;text-align:center}
+.closing h2{font-size:32px}.closing p{font-size:15px;line-height:1.9;opacity:.8;max-width:550px;margin:0 auto}
+.cta{display:inline-block;margin-top:30px;border:1px solid #ffffff70;padding:16px 32px;font-size:17px}
+.review{background:#fff;padding:44px 52px;color:#353535;font-size:14px;line-height:1.8}
+.review h2{font-size:23px;margin:0 0 12px}.review ul{padding-left:20px}.review .label{font-size:11px;color:#666;letter-spacing:.15em}
+.review p{color:#666}.footer{padding:20px 32px;background:#eeeae5;font-size:11px;color:#625e56;line-height:1.7}
+@media(max-width:600px){.status{padding:10px 16px;font-size:10px}.brandline{padding:24px}.hero{padding:46px 24px 0}h1{font-size:38px}.hero figure{margin:0 -24px}.lead{font-size:16px}.story{padding:52px 26px}h2{font-size:29px}.story p{font-size:17px}.points{padding:26px}.point{column-gap:10px;grid-template-columns:32px 1fr}h3{font-size:21px}.point p{font-size:16px}.details{padding:48px 20px}.grid{gap:12px}.closing{padding:46px 28px}.review{padding:32px 26px}}
+</style>
+</head>
+<body><main class="page {{CATEGORY}}">
+<div class="status"><span>사진 한 장 → 상세페이지</span><span>실험 초안 · 판매자 검토 전</span></div>
+<div class="brandline"><span>{{EYEBROW}}</span><span>PHOTO STUDY / 01</span></div>
+<section class="hero"><p class="eyebrow">{{TITLE}}</p><h1>{{HERO_TITLE}}</h1><p class="lead">{{HERO_BODY}}</p>
+<figure><img src="{{IMAGE}}" alt="업로드한 상품 원본 사진"><figcaption>01 / ORIGINAL PHOTOGRAPH · 원본 사진</figcaption></figure></section>
+<section class="story"><div class="rule"></div><h2>{{STORY_TITLE}}</h2><p>{{STORY_BODY}}</p><p class="items">사진 속 대상: {{ITEMS}}</p></section>
+<section class="points" aria-label="사진에서 관찰한 디자인 포인트">{{FEATURES}}</section>
+<section class="details"><header><p class="eyebrow">A CLOSER LOOK</p><h2>가까이 보는 디테일</h2></header>
+<div class="grid"><figure><div class="crop"><img src="{{IMAGE}}" alt="원본 사진 상단 확대"></div><figcaption>02 / 원본 사진 확대 · 상단</figcaption></figure>
+<figure><div class="crop second"><img src="{{IMAGE}}" alt="원본 사진 하단 확대"></div><figcaption>03 / 원본 사진 확대 · 하단</figcaption></figure></div>
+<p class="caption-note">같은 사진의 일부를 확대했습니다. 새로운 각도나 디테일을 생성한 사진이 아닙니다.</p></section>
+<section class="closing"><p class="eyebrow" style="color:inherit">DISCOVER THE DETAILS</p><h2>{{TITLE}}</h2><p>{{NOTE}}</p><span class="cta">{{CTA}}</span></section>
+<aside class="review"><span class="label">SELLER REVIEW / 공개 전 확인</span><h2>상품 정보는 확인 후 채워주세요</h2>
+<p>사진만으로 확정할 수 없는 정보는 자동으로 채우지 않았습니다. 아래 항목은 광고 내용과 별도의 검토 목록입니다.</p>
+<ul>{{MISSING}}</ul><ul>{{CAUTIONS}}</ul></aside>
+<footer class="footer">모델 실험 photo-detail-0.1 · GPT-5.4-mini 사진 분석·문구 생성 / HTML 템플릿 조립<br>새 이미지 생성·배경 제거 없음 · 원본 사진 유지 · 자동 분석 결과는 검토가 필요합니다.</footer>
+</main></body></html>

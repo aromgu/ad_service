@@ -1,0 +1,30 @@
+{
+  "schema_version": "mock-0.1",
+  "request_id": "mug_mock_001",
+  "product": {
+    "product_id": "demo_mug",
+    "revision": 1,
+    "name": "데일리 손잡이 머그",
+    "category_path": ["생활용품", "주방용품", "컵·머그"],
+    "facts": [
+      {"fact_id": "material", "label": "재질", "value": "도자기", "source": {"type": "seller_input", "reference": "material"}},
+      {"fact_id": "capacity", "label": "용량", "value": "350mL", "source": {"type": "seller_input", "reference": "capacity"}},
+      {"fact_id": "color", "label": "색상", "value": "아이보리", "source": {"type": "seller_input", "reference": "color"}}
+    ],
+    "images": [
+      {"asset_id": "demo_mug_front", "role": "primary_product", "width": 1200, "height": 1200, "bbox": null}
+    ],
+    "missing_fields": ["원산지", "식기세척기 사용 가능 여부"]
+  },
+  "content_request": {
+    "output_type": "detail_page",
+    "language": "ko-KR",
+    "sales_channel": "smart_store",
+    "tone": "차분한",
+    "target_audience": "일상용 머그를 찾는 소비자",
+    "section_plan": ["hero", "features", "specifications", "cta"],
+    "image_strategy": "composite",
+    "primary_image_asset_id": "demo_mug_front"
+  },
+  "execution": {"budget_cap_usd": 0}
+}

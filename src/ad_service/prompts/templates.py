@@ -178,3 +178,19 @@ def build_reference_edit_prompt(request: GenerationRequest, asset_type: AssetTyp
         "Square studio product photo. Center the original product on a clean surface with an "
         "uncluttered composition."
     )
+
+
+def build_detail_page_image_edit_prompt(instruction: str) -> str:
+    """상세페이지 챗봇이 만든 이미지 부분 수정 의도를 편집 모델 지시로 고정한다."""
+
+    return (
+        "Edit the supplied ecommerce detail-page image. Apply only the requested visual edit "
+        "inside the delimited request. Preserve the main product exactly: keep its shape, "
+        "proportions, colors, logo, brand name, printed text, label layout, and visible product "
+        "details. Do not replace, duplicate, crop, hide, or redesign the product. Do not add new "
+        "text, pseudo-letters, numbers, logos, labels, prices, calls to action, or watermarks. "
+        "Keep unchanged areas as close to the source as possible.\n"
+        "<requested-edit>\n"
+        f"{instruction}\n"
+        "</requested-edit>"
+    )

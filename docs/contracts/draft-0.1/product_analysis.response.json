@@ -1,0 +1,30 @@
+{
+  "schema_version": "draft-0.1",
+  "request_id": "demo_mug_analysis_001",
+  "status": "needs_review",
+  "candidates": [
+    {
+      "candidate_id": "c1", "field": "name", "value": "데일리 손잡이 머그", "kind": "extracted_claim",
+      "evidence": [{"asset_id": "demo_mug_detail_source", "bbox": [100, 100, 900, 220], "text": "데일리 손잡이 머그"}],
+      "requires_confirmation": true
+    },
+    {
+      "candidate_id": "c2", "field": "capacity", "value": "350mL", "kind": "extracted_claim",
+      "evidence": [{"asset_id": "demo_mug_detail_source", "bbox": [100, 250, 500, 330], "text": "용량 350mL"}],
+      "requires_confirmation": true
+    },
+    {
+      "candidate_id": "c3", "field": "target_audience", "value": "일상용 머그를 찾는 소비자", "kind": "suggestion",
+      "evidence": [], "based_on_candidate_ids": ["c1"],
+      "reason": "상품명에서 제안한 마케팅 타깃으로, 이미지에서 확인된 사실이 아닙니다.",
+      "requires_confirmation": true
+    }
+  ],
+  "unresolved": [
+    {"field": "material", "state": "unknown", "reason": "재질을 확인할 수 있는 정보가 없습니다."},
+    {"field": "certification", "state": "unknown", "reason": "인증 정보가 확인되지 않았습니다. 인증 없음 또는 대상 아님을 의미하지 않습니다."}
+  ],
+  "conflicts": [],
+  "warnings": ["수작업 계약 예시입니다. 실제 OCR을 실행하지 않았고 자산·근거 박스도 설명용입니다. 판매자 확인 전 상품 사실로 저장하지 않습니다."],
+  "execution": {"mode": "contract_example", "model_calls": 0, "providers": [], "estimated_cost_usd": null, "latency_ms": null}
+}

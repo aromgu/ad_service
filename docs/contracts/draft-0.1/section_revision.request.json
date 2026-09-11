@@ -1,0 +1,10 @@
+{
+  "schema_version": "draft-0.1",
+  "request_id": "demo_mug_revision_001",
+  "document_id": "demo_mug_page_001",
+  "base_revision": 1,
+  "section_id": "sec_hero",
+  "target": "text",
+  "instruction": "제목은 더 짧고 담백하게, 본문에는 재질과 용량을 넣어주세요. 상품 사실은 바꾸지 마세요.",
+  "execution": {"budget_cap_usd": 0.02, "max_retries": 1}
+}

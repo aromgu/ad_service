@@ -1,0 +1,1106 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>결과 편집 · 광고 스튜디오</title>
+    <style>
+      :root {
+        font-family: "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+        color: #222330;
+        background: #f1f1f5;
+        --accent: #7154d8;
+        --line: #e3e3ec;
+        --muted: #777888;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      button,
+      input,
+      textarea,
+      select {
+        font: inherit;
+      }
+      button,
+      a,
+      input,
+      textarea,
+      select {
+        outline-offset: 4px;
+      }
+      button:focus-visible,
+      a:focus-visible {
+        outline: 3px solid #bda7ff;
+      }
+      button {
+        cursor: pointer;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: white;
+        padding: 9px 13px;
+        color: inherit;
+      }
+      button:hover {
+        border-color: var(--accent);
+      }
+      button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      a {
+        color: var(--accent);
+      }
+      [hidden] {
+        display: none !important;
+      }
+      header {
+        height: 72px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 28px;
+        background: #15131e;
+        color: white;
+        border-bottom: 1px solid #302b40;
+        gap: 16px;
+      }
+      .brand {
+        font-size: 17px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+      }
+      .brand span {
+        color: #bca7ff;
+        margin-right: 12px;
+      }
+      .header-sub {
+        font-size: 12px;
+        color: #a7a1b7;
+        margin-left: 22px;
+      }
+      .header-link {
+        color: #ded7ef;
+        text-decoration: none;
+        font-size: 13px;
+      }
+      .workspace {
+        display: grid;
+        grid-template-columns: 220px minmax(320px, 1fr) 320px;
+        min-height: calc(100vh - 72px);
+      }
+      aside.library {
+        padding: 28px 16px;
+        background: #1d1a28;
+        color: #efedf6;
+        min-width: 0;
+      }
+      .eyebrow {
+        font-size: 11px;
+        letter-spacing: 1.7px;
+        color: #a59db8;
+        margin: 0 0 8px;
+      }
+      .library h2 {
+        font-size: 20px;
+        margin: 0 0 24px;
+      }
+      .job {
+        display: block;
+        width: 100%;
+        text-align: left;
+        background: transparent;
+        border: 1px solid #383143;
+        color: #cdc7da;
+        margin-bottom: 10px;
+        padding: 14px;
+        border-radius: 10px;
+      }
+      .job.active {
+        background: #342a4e;
+        border-color: #8b6dc9;
+        color: white;
+      }
+      .job strong {
+        display: block;
+        font-size: 13px;
+        line-height: 1.6;
+        overflow-wrap: anywhere;
+      }
+      .job small {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #a69cba;
+      }
+      .empty {
+        font-size: 13px;
+        line-height: 1.8;
+        color: var(--muted);
+      }
+      .library .empty {
+        color: #b6aec8;
+      }
+      .library a {
+        color: #cfbaff;
+      }
+      .stage {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .toolbar {
+        padding: 18px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+        border-bottom: 1px solid var(--line);
+        background: #fafafd;
+      }
+      .toolbar h1 {
+        font-size: 18px;
+        margin: 0;
+      }
+      .toolbar p {
+        font-size: 12px;
+        color: var(--muted);
+        margin: 6px 0 0;
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .primary {
+        background: var(--accent);
+        color: white;
+        border-color: var(--accent);
+      }
+      .primary:hover {
+        background: #6144ca;
+      }
+      .tabs {
+        display: flex;
+        gap: 8px;
+        padding: 18px 24px 0;
+        flex-wrap: wrap;
+      }
+      .tabs button {
+        font-size: 13px;
+        background: transparent;
+        border-color: transparent;
+      }
+      .tabs .active {
+        background: white;
+        color: var(--accent);
+        border-color: #d9ceef;
+        font-weight: 700;
+      }
+      .status-line {
+        min-height: 48px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 24px;
+        font-size: 12px;
+        gap: 12px;
+        color: var(--muted);
+      }
+      .status-line strong {
+        color: #6d50b1;
+      }
+      .status-line .error {
+        color: #b72a43;
+      }
+      .canvas-area {
+        flex: 1;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 14px 32px 36px;
+        background-image: radial-gradient(#dbd9e3 0.7px, transparent 0.7px);
+        background-size: 16px 16px;
+        overflow: hidden;
+      }
+      .artboard {
+        position: relative;
+        width: 100%;
+        max-width: 820px;
+        box-shadow: 0 12px 40px #27213818;
+        line-height: 0;
+        background: #fff;
+        touch-action: none;
+        align-self: flex-start;
+      }
+      .artboard img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      .artboard.pending {
+        opacity: 0.65;
+      }
+      .product-box {
+        position: absolute;
+        border: 1px dashed #8660df;
+        cursor: move;
+        touch-action: none;
+        background: transparent;
+      }
+      .product-box:hover,
+      .product-box.dragging {
+        background: #9b6df314;
+        border: 2px solid #8f67e6;
+      }
+      .product-box span {
+        position: absolute;
+        top: -23px;
+        left: 0;
+        background: #7154d8;
+        color: white;
+        font-size: 10px;
+        padding: 6px 8px;
+        line-height: 1;
+        white-space: nowrap;
+        border-radius: 4px;
+      }
+      .stage-empty {
+        padding: 80px 24px;
+        text-align: center;
+        color: var(--muted);
+        line-height: 1.8;
+      }
+      .stage-empty strong {
+        display: block;
+        font-size: 22px;
+        color: #292535;
+        margin-bottom: 12px;
+      }
+      .inspector {
+        background: #fff;
+        border-left: 1px solid var(--line);
+        padding: 24px 20px;
+      }
+      .inspector h2 {
+        font-size: 17px;
+        margin: 0 0 6px;
+      }
+      .hint {
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.7;
+        margin: 0 0 20px;
+      }
+      .group {
+        padding: 20px 0;
+        border-top: 1px solid var(--line);
+      }
+      .group h3 {
+        font-size: 13px;
+        margin: 0 0 14px;
+      }
+      .field {
+        margin-bottom: 14px;
+      }
+      .field label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: #595666;
+        margin-bottom: 7px;
+        gap: 8px;
+      }
+      .field input[type="text"],
+      .field textarea,
+      .field select,
+      .revision-select {
+        width: 100%;
+        border: 1px solid #dfdce8;
+        border-radius: 8px;
+        padding: 10px;
+        background: #faf9fc;
+        color: #292535;
+        font-size: 13px;
+      }
+      .field textarea {
+        resize: vertical;
+        min-height: 66px;
+        line-height: 1.5;
+      }
+      .field input[type="range"] {
+        width: 100%;
+        accent-color: var(--accent);
+        margin: 6px 0;
+      }
+      .field input[type="color"] {
+        width: 100%;
+        height: 32px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: transparent;
+      }
+      .split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .checkbox {
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+      .checkbox input {
+        accent-color: var(--accent);
+      }
+      .candidate {
+        font-size: 12px !important;
+        margin-bottom: 8px;
+      }
+      .tag {
+        padding: 5px 9px;
+        border-radius: 20px;
+        background: #efeaf9;
+        color: #7958b2;
+        font-size: 11px;
+      }
+      .inspector fieldset {
+        border: 0;
+        margin: 0;
+        padding: 0;
+      }
+      .inspector fieldset:disabled {
+        opacity: 0.4;
+      }
+      .footer-note {
+        font-size: 11px;
+        color: #918c9f;
+        line-height: 1.7;
+        margin-top: 20px;
+      }
+      @media (min-width: 1450px) {
+        .workspace {
+          grid-template-columns: 240px minmax(320px, 1fr) 350px;
+        }
+        .inspector {
+          padding: 28px;
+        }
+      }
+      @media (max-width: 1100px) {
+        .workspace {
+          grid-template-columns: 170px minmax(280px, 1fr) 280px;
+        }
+        .toolbar {
+          padding: 16px;
+        }
+        .canvas-area {
+          padding: 12px 20px 24px;
+        }
+        .header-sub {
+          display: none;
+        }
+      }
+      @media (max-width: 820px) {
+        header {
+          height: 60px;
+          padding: 0 16px;
+        }
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+        .library {
+          padding: 18px !important;
+        }
+        .library h2 {
+          font-size: 16px;
+          margin-bottom: 12px;
+        }
+        .jobs {
+          display: flex;
+          gap: 8px;
+          overflow: auto;
+        }
+        .job {
+          min-width: 160px;
+          max-width: 210px;
+          margin: 0;
+        }
+        .inspector {
+          border-top: 1px solid var(--line);
+          border-left: 0;
+        }
+        .canvas-area {
+          min-height: 280px;
+        }
+        .artboard {
+          max-width: 540px;
+        }
+        .header-link {
+          font-size: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <span>✦</span>광고 스튜디오
+        <span class="header-sub">만든 광고를, 내 마음에 맞게.</span>
+      </div>
+      <a class="header-link" href="/demo">새 광고 만들기 ↗</a>
+    </header>
+    <main class="workspace">
+      <aside class="library">
+        <p class="eyebrow">WORKSPACE</p>
+        <h2>내 작업</h2>
+        <div id="jobs" class="jobs">
+          <p class="empty">작업을 불러오는 중…</p>
+        </div>
+        <p class="footer-note">
+          현재 서버에 저장된 최근 생성 결과를 보여줍니다.
+        </p>
+      </aside>
+      <section class="stage">
+        <div class="toolbar">
+          <div>
+            <h1 id="asset-title">결과 편집</h1>
+            <p id="dimensions">작업을 선택해 시작하세요.</p>
+          </div>
+          <div class="actions">
+            <button id="compare" disabled>원본 보기</button
+            ><button id="save" disabled>수정본 저장</button
+            ><button id="download" class="primary" disabled>
+              PNG 다운로드
+            </button>
+          </div>
+        </div>
+        <nav id="tabs" class="tabs" aria-label="결과물 종류"></nav>
+        <div class="status-line">
+          <span id="status" role="status" aria-live="polite"
+            >저장된 배경과 상품을 재사용합니다.</span
+          ><strong id="saved-state"></strong>
+        </div>
+        <div id="stage-empty" class="stage-empty">
+          <strong>광고의 마지막 손질</strong>왼쪽에서 결과를 선택하세요.<br />문구와
+          상품 배치를 조절하고 이미지로 저장할 수 있습니다.
+        </div>
+        <div id="canvas-area" class="canvas-area" hidden>
+          <div id="artboard" class="artboard">
+            <img id="preview" alt="광고 편집 미리보기" draggable="false" />
+            <div
+              id="product-box"
+              class="product-box"
+              hidden
+              tabindex="0"
+              role="group"
+              aria-label="상품 위치 조절. 드래그하거나 방향키로 이동하세요."
+            >
+              <span>상품 이동</span>
+            </div>
+          </div>
+        </div>
+      </section>
+      <aside id="inspector" class="inspector" hidden>
+        <h2>디자인 조절 <span class="tag">모델 호출 없음</span></h2>
+        <p class="hint">
+          변경사항은 미리보기에 반영됩니다.<br />상품을 드래그하거나 아래 조절
+          막대를 이용하세요.
+        </p>
+        <div class="field">
+          <label for="revision">저장된 버전</label
+          ><select id="revision" class="revision-select">
+            <option value="">처음 생성한 결과</option>
+          </select>
+        </div>
+        <div class="group">
+          <h3>상품 배치</h3>
+          <p id="product-note" class="hint"></p>
+          <fieldset id="product-controls">
+            <div class="field">
+              <label for="product-x">좌우 위치 <output></output></label
+              ><input
+                id="product-x"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                data-key="product.x"
+              />
+            </div>
+            <div class="field">
+              <label for="product-y">위아래 위치 <output></output></label
+              ><input
+                id="product-y"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                data-key="product.y"
+              />
+            </div>
+            <div class="field">
+              <label for="product-height">상품 크기 <output></output></label
+              ><input
+                id="product-height"
+                type="range"
+                min="0.1"
+                max="0.95"
+                step="0.01"
+                data-key="product.height"
+              />
+            </div>
+            <div class="field">
+              <label for="product-shadow">그림자 진하기 <output></output></label
+              ><input
+                id="product-shadow"
+                type="range"
+                min="0"
+                max="0.6"
+                step="0.01"
+                data-key="product.shadow"
+              />
+            </div>
+          </fieldset>
+        </div>
+        <div class="group">
+          <h3>광고 문구</h3>
+          <label class="checkbox"
+            ><input id="text-visible" type="checkbox" data-key="text.visible" />
+            문구 표시</label
+          >
+          <div class="field">
+            <label for="headline">제목</label
+            ><select
+              id="headline-candidates"
+              class="candidate"
+              aria-label="제목 후보 선택"
+            ></select
+            ><textarea
+              id="headline"
+              data-key="text.headline"
+              maxlength="80"
+            ></textarea>
+          </div>
+          <div class="field">
+            <label for="body">설명</label
+            ><select
+              id="body-candidates"
+              class="candidate"
+              aria-label="설명 후보 선택"
+            ></select
+            ><textarea
+              id="body"
+              data-key="text.body"
+              maxlength="300"
+            ></textarea>
+          </div>
+          <div class="field">
+            <label for="cta">버튼 문구</label
+            ><select
+              id="cta-candidates"
+              class="candidate"
+              aria-label="버튼 후보 선택"
+            ></select
+            ><input id="cta" type="text" data-key="text.cta" maxlength="24" />
+          </div>
+          <div class="field">
+            <label for="headline-size">제목 크기 <output></output></label
+            ><input
+              id="headline-size"
+              type="range"
+              min="20"
+              max="96"
+              step="1"
+              data-key="text.headline_size"
+            />
+          </div>
+          <div class="field">
+            <label for="body-size">설명 크기 <output></output></label
+            ><input
+              id="body-size"
+              type="range"
+              min="14"
+              max="56"
+              step="1"
+              data-key="text.body_size"
+            />
+          </div>
+          <div class="split">
+            <div class="field">
+              <label for="text-x">문구 좌우 <output></output></label
+              ><input
+                id="text-x"
+                type="range"
+                min="0"
+                max="0.85"
+                step="0.01"
+                data-key="text.x"
+              />
+            </div>
+            <div class="field">
+              <label for="text-y">문구 위아래 <output></output></label
+              ><input
+                id="text-y"
+                type="range"
+                min="0"
+                max="0.85"
+                step="0.01"
+                data-key="text.y"
+              />
+            </div>
+          </div>
+          <div class="field">
+            <label for="text-width">문구 영역 너비 <output></output></label
+            ><input
+              id="text-width"
+              type="range"
+              min="0.15"
+              max="0.95"
+              step="0.01"
+              data-key="text.width"
+            />
+          </div>
+          <div class="field">
+            <label for="text-color">글자·버튼 색상</label
+            ><input id="text-color" type="color" data-key="text.color" />
+          </div>
+        </div>
+        <button id="reset">불러온 상태로 되돌리기</button>
+        <p class="footer-note">
+          수정본은 별도 버전으로 저장됩니다. 원래 생성한 이미지는 그대로
+          보관됩니다.
+        </p>
+      </aside>
+    </main>
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const names = {
+        banner: "배너",
+        detail_visual: "상세 대표 이미지",
+        product_image: "제품 이미지",
+      };
+      let jobs = [],
+        current = null,
+        scene = null,
+        loaded = null,
+        dirty = false,
+        busy = false,
+        comparing = false;
+      let timer = null,
+        previewAbort = null,
+        previewUrl = null,
+        savedUrl = null,
+        generation = 0,
+        previewValid = false;
+      function status(message, error = false) {
+        $("status").textContent = message;
+        $("status").className = error ? "error" : "";
+      }
+      function actions() {
+        for (const id of ["save", "download"])
+          $(id).disabled = !current || busy || !previewValid;
+        $("compare").disabled = !current || busy;
+      }
+      async function request(url, options = {}) {
+        const response = await fetch(url, options);
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(
+            typeof data.detail === "string"
+              ? data.detail
+              : "처리하지 못했습니다. 입력값과 서버 상태를 확인해주세요.",
+          );
+        }
+        return response;
+      }
+      function base() {
+        return `/v1/editor/${encodeURIComponent(current.request_id)}/${current.asset}`;
+      }
+      function syncControls() {
+        document.querySelectorAll("[data-key]").forEach((input) => {
+          const [group, key] = input.dataset.key.split(".");
+          const value = scene[group][key];
+          if (input.type === "checkbox") input.checked = value;
+          else input.value = value;
+          const output = input.parentElement.querySelector("output");
+          if (output)
+            output.textContent = key.endsWith("size")
+              ? `${value}px`
+              : `${Math.round(value * 100)}%`;
+        });
+      }
+      function productBox() {
+        const box = $("product-box");
+        box.hidden = !current?.product_editable || comparing;
+        if (box.hidden) return;
+        const [pw, ph] = current.product_size;
+        const factor = Math.min(
+          (current.height * scene.product.height) / ph,
+          (current.width * 0.95) / pw,
+        );
+        const w = (pw * factor) / current.width,
+          h = (ph * factor) / current.height;
+        Object.assign(box.style, {
+          width: `${w * 100}%`,
+          height: `${h * 100}%`,
+          left: `${(1 - w) * scene.product.x * 100}%`,
+          top: `${(1 - h) * scene.product.y * 100}%`,
+        });
+      }
+      function changed() {
+        dirty = true;
+        savedUrl = null;
+        previewValid = false;
+        $("saved-state").textContent = "저장되지 않은 변경";
+        if (comparing) toggleCompare();
+        syncControls();
+        productBox();
+        clearTimeout(timer);
+        previewAbort?.abort();
+        generation++;
+        actions();
+        status("미리보기에 반영 중…");
+        timer = setTimeout(renderPreview, 350);
+      }
+      async function renderPreview() {
+        clearTimeout(timer);
+        const token = ++generation;
+        previewAbort?.abort();
+        previewAbort = new AbortController();
+        const controller = previewAbort;
+        $("artboard").classList.add("pending");
+        try {
+          const response = await request(`${base()}/preview`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(scene),
+            signal: controller.signal,
+          });
+          const blob = await response.blob();
+          if (token !== generation) return;
+          const next = URL.createObjectURL(blob);
+          const image = new Image();
+          image.src = next;
+          await image.decode();
+          if (token !== generation) {
+            URL.revokeObjectURL(next);
+            return;
+          }
+          if (previewUrl) URL.revokeObjectURL(previewUrl);
+          previewUrl = next;
+          if (!comparing) $("preview").src = next;
+          previewValid = true;
+          status("미리보기 반영 완료 · 상품을 드래그해 이동할 수 있어요.");
+        } catch (error) {
+          if (error.name !== "AbortError" && token === generation) {
+            previewValid = false;
+            status(error.message, true);
+          }
+        } finally {
+          if (token === generation) {
+            $("artboard").classList.remove("pending");
+            actions();
+          }
+        }
+      }
+      function acceptSwitch() {
+        return (
+          !busy &&
+          (!dirty ||
+            confirm("저장하지 않은 변경이 있습니다. 저장하지 않고 이동할까요?"))
+        );
+      }
+      function drawJobs() {
+        const container = $("jobs");
+        container.replaceChildren();
+        if (!jobs.length) {
+          const p = document.createElement("p");
+          p.className = "empty";
+          p.textContent =
+            "아직 저장된 이미지가 없습니다. 새 광고를 만든 뒤 여기에서 편집하세요.";
+          container.append(p);
+          return;
+        }
+        for (const job of jobs) {
+          const button = document.createElement("button");
+          button.className =
+            "job" + (current?.request_id === job.request_id ? " active" : "");
+          const title = document.createElement("strong"),
+            sub = document.createElement("small");
+          title.textContent =
+            job.title.length > 48 ? job.title.slice(0, 48) + "…" : job.title;
+          sub.textContent = `이미지 ${job.assets.length}개 · ${new Date(job.updated_at * 1000).toLocaleDateString("ko-KR")}`;
+          button.append(title, sub);
+          button.addEventListener("click", () => {
+            if (acceptSwitch()) load(job.request_id, job.assets[0]);
+          });
+          container.append(button);
+        }
+      }
+      async function load(id, kind, revision = "") {
+        clearTimeout(timer);
+        previewAbort?.abort();
+        generation++;
+        busy = true;
+        previewValid = false;
+        $("inspector").inert = true;
+        actions();
+        status("편집 데이터를 불러오는 중…");
+        try {
+          const response = await request(
+            `/v1/editor/${encodeURIComponent(id)}/${kind}${revision ? `?revision=${encodeURIComponent(revision)}` : ""}`,
+          );
+          current = await response.json();
+          scene = structuredClone(current.scene);
+          loaded = structuredClone(scene);
+          dirty = false;
+          comparing = false;
+          savedUrl = null;
+          $("compare").textContent = "원본 보기";
+          $("saved-state").textContent = revision ? "저장된 수정본" : "";
+          $("asset-title").textContent = names[kind];
+          $("dimensions").textContent =
+            `${current.width} × ${current.height} · ${id}`;
+          $("stage-empty").hidden = true;
+          $("canvas-area").hidden = false;
+          $("inspector").hidden = false;
+          $("product-controls").disabled = !current.product_editable;
+          $("product-note").textContent = current.product_editable
+            ? "상품 비율은 유지하면서 크기와 위치를 바꿉니다."
+            : "이 결과는 상품과 배경이 한 이미지입니다. 문구만 편집할 수 있어요.";
+          $("artboard").style.maxWidth =
+            current.height > current.width ? "460px" : "820px";
+          const select = $("revision");
+          select.replaceChildren(new Option("처음 생성한 결과", ""));
+          for (const item of current.revisions)
+            select.add(
+              new Option(
+                new Date(item.saved_at * 1000).toLocaleString("ko-KR"),
+                item.id,
+              ),
+            );
+          select.value = revision;
+          for (const key of ["headline", "body", "cta"]) {
+            const choices = $(key + "-candidates");
+            choices.replaceChildren(new Option("생성된 후보에서 선택", ""));
+            const values = current.copy_candidates?.[key + "_candidates"] || [];
+            values.forEach((value) => choices.add(new Option(value, value)));
+            choices.hidden = !values.length;
+          }
+          const job = jobs.find((j) => j.request_id === id);
+          $("tabs").replaceChildren();
+          for (const asset of job?.assets || [kind]) {
+            const button = document.createElement("button");
+            button.textContent = names[asset];
+            button.className = kind === asset ? "active" : "";
+            button.setAttribute("aria-pressed", String(kind === asset));
+            button.onclick = () => {
+              if (asset !== current.asset && acceptSwitch()) load(id, asset);
+            };
+            $("tabs").append(button);
+          }
+          history.replaceState(
+            null,
+            "",
+            `?request_id=${encodeURIComponent(id)}&asset=${kind}${revision ? `&revision=${revision}` : ""}`,
+          );
+          syncControls();
+          productBox();
+          drawJobs();
+          await renderPreview();
+        } catch (error) {
+          status(error.message, true);
+        } finally {
+          busy = false;
+          $("inspector").inert = false;
+          actions();
+        }
+      }
+      document.querySelectorAll("[data-key]").forEach((input) =>
+        input.addEventListener("input", () => {
+          if (!scene || busy) return;
+          const [group, key] = input.dataset.key.split(".");
+          scene[group][key] =
+            input.type === "checkbox"
+              ? input.checked
+              : input.type === "range"
+                ? Number(input.value)
+                : input.value;
+          changed();
+        }),
+      );
+      for (const key of ["headline", "body", "cta"])
+        $(key + "-candidates").addEventListener("change", (event) => {
+          if (event.target.value) {
+            scene.text[key] = event.target.value;
+            changed();
+          }
+        });
+      $("revision").addEventListener("change", (event) => {
+        if (acceptSwitch())
+          load(current.request_id, current.asset, event.target.value);
+        else
+          event.target.value =
+            new URLSearchParams(location.search).get("revision") || "";
+      });
+      $("reset").onclick = () => {
+        scene = structuredClone(loaded);
+        changed();
+      };
+      function toggleCompare() {
+        comparing = !comparing;
+        $("compare").textContent = comparing ? "편집본 보기" : "원본 보기";
+        $("preview").src = comparing ? current.original_url : previewUrl;
+        productBox();
+      }
+      $("compare").onclick = toggleCompare;
+      async function save(download = false) {
+        if (busy || !previewValid) return;
+        busy = true;
+        actions();
+        $("inspector").inert = true;
+        status("수정본을 저장하는 중…");
+        try {
+          if (!savedUrl) {
+            const response = await request(`${base()}/save`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(scene),
+            });
+            const result = await response.json();
+            savedUrl = result.download_url;
+            loaded = structuredClone(scene);
+            dirty = false;
+            $("saved-state").textContent = "수정본 저장 완료";
+            const option = new Option(
+              new Date().toLocaleString("ko-KR"),
+              result.revision,
+            );
+            $("revision").add(option, 1);
+            $("revision").value = result.revision;
+            history.replaceState(
+              null,
+              "",
+              `?request_id=${encodeURIComponent(current.request_id)}&asset=${current.asset}&revision=${result.revision}`,
+            );
+          }
+          if (download) {
+            const a = document.createElement("a");
+            a.href = savedUrl;
+            a.download = "";
+            a.click();
+          }
+          status(
+            download
+              ? "수정본을 저장하고 PNG 다운로드를 요청했습니다."
+              : "저장 완료 · 다음에 이 버전을 다시 열어 편집할 수 있어요.",
+          );
+        } catch (error) {
+          status(error.message, true);
+        } finally {
+          busy = false;
+          $("inspector").inert = false;
+          actions();
+        }
+      }
+      $("save").onclick = () => save();
+      $("download").onclick = () => save(true);
+      let drag = null;
+      const box = $("product-box");
+      box.addEventListener("pointerdown", (event) => {
+        if (busy || !scene) return;
+        drag = {
+          x: event.clientX,
+          y: event.clientY,
+          startX: scene.product.x,
+          startY: scene.product.y,
+        };
+        box.setPointerCapture(event.pointerId);
+        box.classList.add("dragging");
+      });
+      box.addEventListener("pointermove", (event) => {
+        if (!drag) return;
+        const board = $("artboard").getBoundingClientRect(),
+          rect = box.getBoundingClientRect();
+        scene.product.x = Math.max(
+          0,
+          Math.min(
+            1,
+            drag.startX +
+              (event.clientX - drag.x) / Math.max(1, board.width - rect.width),
+          ),
+        );
+        scene.product.y = Math.max(
+          0,
+          Math.min(
+            1,
+            drag.startY +
+              (event.clientY - drag.y) /
+                Math.max(1, board.height - rect.height),
+          ),
+        );
+        syncControls();
+        productBox();
+      });
+      function endDrag() {
+        if (drag) {
+          drag = null;
+          box.classList.remove("dragging");
+          changed();
+        }
+      }
+      box.addEventListener("pointerup", endDrag);
+      box.addEventListener("pointercancel", endDrag);
+      box.addEventListener("keydown", (event) => {
+        if (
+          !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(
+            event.key,
+          ) ||
+          busy
+        )
+          return;
+        event.preventDefault();
+        const axis =
+          event.key === "ArrowLeft" || event.key === "ArrowRight" ? "x" : "y";
+        const direction =
+          event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
+        scene.product[axis] = Math.max(
+          0,
+          Math.min(1, scene.product[axis] + direction * 0.01),
+        );
+        changed();
+      });
+      window.addEventListener("beforeunload", (event) => {
+        if (dirty) {
+          event.preventDefault();
+          event.returnValue = "";
+        }
+      });
+      (async () => {
+        try {
+          jobs = (await (await request("/v1/editor/jobs")).json()).items;
+          drawJobs();
+          const params = new URLSearchParams(location.search),
+            id = params.get("request_id");
+          if (id)
+            await load(
+              id,
+              params.get("asset") || "banner",
+              params.get("revision") || "",
+            );
+          else if (jobs.length)
+            await load(jobs[0].request_id, jobs[0].assets[0]);
+          else status("새 광고를 만들면 이곳에서 편집할 수 있습니다.");
+        } catch (error) {
+          status(error.message, true);
+        }
+      })();
+    </script>
+  </body>
+</html>

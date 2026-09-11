@@ -1,0 +1,34 @@
+{
+  "schema_version": "product-analysis-0.1",
+  "request_id": "cosmetics_analysis_001",
+  "purpose": "product_autofill",
+  "assets": [
+    {
+      "asset_id": "front",
+      "role": "product_image",
+      "width": 1000,
+      "height": 1000
+    }
+  ],
+  "seller_input": {
+    "name": null,
+    "category_hint": "화장품",
+    "facts": []
+  },
+  "requested_fields": [
+    "name",
+    "brand",
+    "product_type",
+    "label_text",
+    "color",
+    "target_audience",
+    "ingredients",
+    "benefits",
+    "volume",
+    "certification"
+  ],
+  "execution": {
+    "budget_cap_usd": 0.05,
+    "max_retries": 0
+  }
+}

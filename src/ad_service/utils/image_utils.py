@@ -107,11 +107,12 @@ def _wrap(
 
     for word in text.split():
         candidate = f"{current} {word}".strip()
-        if not current or width(candidate) <= max_width:
+        if width(candidate) <= max_width:
             current = candidate
             continue
 
-        lines.append(current)
+        if current:
+            lines.append(current)
         current = ""
 
         # 정상적인 광고 문구는 여기까지 오지 않습니다. URL처럼 공백이 없는 긴 문자열도

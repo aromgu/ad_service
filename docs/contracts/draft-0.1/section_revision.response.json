@@ -1,0 +1,22 @@
+{
+  "schema_version": "draft-0.1",
+  "request_id": "demo_mug_revision_001",
+  "document_id": "demo_mug_page_001",
+  "base_revision": 1,
+  "revision": 2,
+  "status": "needs_review",
+  "change": {
+    "section_id": "sec_hero",
+    "target": "text",
+    "content": {
+      "heading": "일상에 놓는 아이보리 머그",
+      "body": "도자기 소재의 350mL 데일리 손잡이 머그입니다.",
+      "fact_refs": ["f1", "f2", "f3"]
+    }
+  },
+  "review": {
+    "requires_human_approval": true,
+    "warnings": ["수작업 계약 예시입니다. 이미지·레이아웃·다른 섹션은 기준 버전에서 그대로 유지합니다."]
+  },
+  "execution": {"mode": "contract_example", "model_calls": 0, "providers": [], "estimated_cost_usd": null, "latency_ms": null}
+}

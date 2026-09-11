@@ -1,0 +1,11 @@
+{
+  "schema_version": "draft-0.1",
+  "request_id": "demo_mug_analysis_001",
+  "purpose": "product_autofill",
+  "reference_documents": [
+    {"asset_id": "demo_mug_detail_source", "role": "existing_detail_page", "width": 1200, "height": 1800}
+  ],
+  "seller_input": {"name": null, "facts": []},
+  "requested_fields": ["name", "capacity", "material", "target_audience", "certification"],
+  "execution": {"budget_cap_usd": 0.05, "max_retries": 1}
+}

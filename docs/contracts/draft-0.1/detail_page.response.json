@@ -1,0 +1,74 @@
+{
+  "schema_version": "draft-0.1",
+  "request_id": "demo_mug_detail_001",
+  "document_id": "demo_mug_page_001",
+  "revision": 1,
+  "product_id": "demo_mug_001",
+  "product_revision": 1,
+  "output_type": "detail_page",
+  "status": "needs_review",
+  "sections": [
+    {
+      "section_id": "sec_hero",
+      "type": "hero",
+      "layout": "image_text",
+      "content": {
+        "heading": "아이보리 도자기 머그, 350mL",
+        "body": "데일리 손잡이 머그를 만나보세요.",
+        "fact_refs": ["f1", "f2", "f3"]
+      },
+      "image": {"asset_id": "demo_mug_hero_composite", "alt": "밝은 배경에 놓인 아이보리 머그"}
+    },
+    {
+      "section_id": "sec_features",
+      "type": "features",
+      "layout": "feature_list",
+      "content": {
+        "heading": "상품을 살펴보세요",
+        "items": [
+          {"text": "아이보리 색상의 도자기 머그", "fact_refs": ["f1", "f3"]},
+          {"text": "용량 350mL", "fact_refs": ["f2"]}
+        ]
+      },
+      "image": null
+    },
+    {
+      "section_id": "sec_specs",
+      "type": "specifications",
+      "layout": "spec_table",
+      "content": {
+        "heading": "상품 정보",
+        "rows": [
+          {"label": "재질", "value": "도자기", "fact_refs": ["f1"]},
+          {"label": "용량", "value": "350mL", "fact_refs": ["f2"]},
+          {"label": "색상", "value": "아이보리", "fact_refs": ["f3"]},
+          {"label": "구성", "value": "머그 1개", "fact_refs": ["f4"]}
+        ]
+      },
+      "image": null
+    }
+  ],
+  "assets": [
+    {"asset_id": "demo_mug_front", "kind": "reference", "origin": "input", "width": 1200, "height": 1200},
+    {"asset_id": "demo_mug_cutout", "kind": "cutout", "origin": "mock", "width": 1200, "height": 1200},
+    {"asset_id": "demo_mug_background", "kind": "background", "origin": "mock", "width": 1024, "height": 1536},
+    {
+      "asset_id": "demo_mug_hero_composite", "kind": "composite", "origin": "mock", "width": 1024, "height": 1536,
+      "layers": {"background_asset_id": "demo_mug_background", "cutout_asset_id": "demo_mug_cutout"}
+    }
+  ],
+  "review": {
+    "requires_human_approval": true,
+    "missing_fields": ["원산지", "전자레인지 사용 가능 여부", "식기세척기 사용 가능 여부"],
+    "warnings": ["가상 상품의 수작업 계약 예시입니다. 실제 생성 이미지나 검증된 상품 정보가 아닙니다."]
+  },
+  "execution": {
+    "mode": "contract_example",
+    "model_calls": 0,
+    "providers": [],
+    "input_tokens": null,
+    "output_tokens": null,
+    "estimated_cost_usd": null,
+    "latency_ms": null
+  }
+}
