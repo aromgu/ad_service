@@ -13,6 +13,7 @@ from app.api.routes import (
     jobs,
     products,
     settings as settings_routes,
+    store_products,
     uploads,
     workspace,
 )
@@ -56,6 +57,7 @@ api.include_router(uploads.router)
 api.include_router(jobs.router)
 api.include_router(documents.router)
 api.include_router(products.router)
+api.include_router(store_products.router)
 api.include_router(settings_routes.router)
 api.include_router(workspace.router)
 app.include_router(api)

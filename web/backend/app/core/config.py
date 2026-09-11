@@ -33,8 +33,6 @@ class Settings(BaseSettings):
     # SELF — 내 스토어 / SELLER — 대행. SELLER 일 때만 account_id 를 보낸다.
     naver_account_type: str = "SELF"
     naver_account_id: str = ""
-    # false 면 실제 등록 대신 페이로드 검증까지만 한다 (연습용).
-    naver_register_live: bool = True
 
     generation_provider: str = "mock"
     remote_generation_url: str = "http://localhost:8100"

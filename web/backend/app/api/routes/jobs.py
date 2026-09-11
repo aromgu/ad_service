@@ -42,6 +42,22 @@ def _images_from_document(db, doc_id: str, user_id: str) -> list[ImageRef]:
     return [ImageRef(id=f"doc-{i}", url=u) for i, u in enumerate(urls)]
 
 
+def _product_info_from_document(db, doc_id: str) -> str:
+    """상세페이지를 만들 때 입력한 상품명·특징을 상품등록 입력으로 이어 쓴다.
+
+    첫 줄이 상품명이어야 생성기가 그걸 상품명으로 쓴다.
+    """
+    job = (
+        db.query(Job)
+        .filter(Job.document_id == doc_id, Job.type == "detail_page")
+        .order_by(Job.created_at.desc())
+        .first()
+    )
+    form = (job.form if job else None) or {}
+    parts = (form.get("product_name") or "", form.get("features") or "")
+    return "\n".join(p.strip() for p in parts if p.strip())
+
+
 @router.post("", response_model=JobOut, status_code=status.HTTP_201_CREATED)
 def create_job(payload: JobCreate, user: CurrentUser, db: DbSession) -> JobOut:
     from_doc = getattr(payload, "from_document_id", None)
@@ -52,6 +68,8 @@ def create_job(payload: JobCreate, user: CurrentUser, db: DbSession) -> JobOut:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST, "이 상세페이지에는 넘길 이미지가 없습니다."
             )
+        if not payload.form.product_info.strip():
+            payload.form.product_info = _product_info_from_document(db, from_doc)
     else:
         low, high, message = IMAGE_RULES[payload.type]
         if not (low <= len(payload.image_ids) <= high):

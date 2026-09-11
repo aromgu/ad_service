@@ -4,6 +4,7 @@ import { Download, type LucideIcon, PanelLeft, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { Loading } from "@/components/Loading";
 import { ApiError, api } from "@/lib/api";
 import { documentToHtml, download, safeFilename } from "@/lib/document-export";
 import { useEscape } from "@/lib/use-dismiss";
@@ -287,10 +288,8 @@ export function EditorShell({
                 />
               </div>
             ) : (
-              <div
-                className="h-[600px] rounded-[4px] border border-paper-line bg-paper"
-                style={{ width: canvas.width }}
-              />
+              // 빈 종이 상자 대신 불러오는 중 표시 — 상자는 덜 만든 화면처럼 보인다.
+              <Loading className="pt-24" />
             )}
           </div>
 

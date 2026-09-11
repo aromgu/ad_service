@@ -70,6 +70,19 @@ def search(client: NaverCommerceClient, keyword: str, limit: int = 8) -> list[di
     ]
 
 
+def path_of(client: NaverCommerceClient, leaf_id: str) -> str:
+    """카테고리 ID 의 전체 경로 ("화장품/미용 › 스킨케어 › …"). 못 찾으면 ID 라도 보여 준다."""
+    try:
+        cats = leaf_categories(client)
+    except NaverApiError:
+        logger.warning("네이버 카테고리 조회 실패 — ID 로 대신 표시합니다", exc_info=True)
+        cats = []
+    for c in cats:
+        if str(c.get("id")) == str(leaf_id):
+            return c.get("wholeCategoryName", "").replace(">", " › ")
+    return f"카테고리 {leaf_id}"
+
+
 def notice_type_for(category_path: str) -> str:
     """카테고리 경로로 상품정보제공고시 상품군을 고른다."""
     for keyword, notice in _NOTICE_BY_KEYWORD:

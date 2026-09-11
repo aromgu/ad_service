@@ -21,6 +21,10 @@ logger = logging.getLogger(__name__)
 TOKEN_PATH = "/v1/oauth2/token"
 # 토큰 만료 직전에 재발급하지 않도록 여유를 둔다.
 EXPIRY_MARGIN_SECONDS = 60
+# 상품 목록에 보여 줄 판매 상태. 삭제된 상품만 빼고 모두 보여 준다.
+LISTED_STATUS_TYPES = [
+    "WAIT", "SALE", "OUTOFSTOCK", "UNADMISSION", "REJECTION", "SUSPENSION", "CLOSE", "PROHIBITION",
+]
 
 
 class NaverApiError(RuntimeError):
@@ -183,7 +187,24 @@ class NaverCommerceClient:
         self._raise_for(res, "상품 등록")
         return res.json()
 
-    def delete_origin_product(self, origin_product_no: int) -> None:
+    def get_origin_product(self, origin_product_no: int | str) -> dict:
+        """원상품 전체 정보 {originProduct, smartstoreChannelProduct, ...}."""
+        res = self.request("GET", f"/v2/products/origin-products/{origin_product_no}")
+        self._raise_for(res, "상품 조회")
+        return res.json()
+
+    def update_origin_product(self, origin_product_no: int | str, payload: dict) -> dict:
+        """원상품 수정. 요청에 빠진 정보는 네이버에서 지워지므로 조회한 전체 정보를 고쳐 보낸다."""
+        res = self.request(
+            "PUT",
+            f"/v2/products/origin-products/{origin_product_no}",
+            json=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        self._raise_for(res, "상품 수정")
+        return res.json()
+
+    def delete_origin_product(self, origin_product_no: int | str) -> None:
         res = self.request("DELETE", f"/v2/products/origin-products/{origin_product_no}")
         if res.status_code not in (200, 204):
             self._raise_for(res, "상품 삭제")
@@ -192,7 +213,7 @@ class NaverCommerceClient:
         res = self.request(
             "POST",
             "/v1/products/search",
-            json={"page": page, "size": size},
+            json={"page": page, "size": size, "productStatusTypes": LISTED_STATUS_TYPES},
             headers={"Content-Type": "application/json"},
         )
         self._raise_for(res, "상품 목록 조회")

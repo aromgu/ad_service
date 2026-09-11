@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { Loading } from "@/components/Loading";
 import { TopNav } from "@/components/TopNav";
 import { WorkCard } from "@/components/WorkCard";
 import { ButtonLink } from "@/components/ui/Button";
@@ -143,18 +144,7 @@ export default function WorksPage() {
           )}
 
           {items === null ? (
-            <>
-              <span className="text-[12.5px] text-muted">불러오는 중…</span>
-              <ul className="grid grid-cols-2 gap-[18px] min-[820px]:grid-cols-2 min-[1100px]:grid-cols-3 min-[1440px]:grid-cols-4">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <li
-                    key={i}
-                    className="h-[520px] rounded-xl border border-line bg-surface"
-                    aria-hidden
-                  />
-                ))}
-              </ul>
-            </>
+            <Loading className="py-16" />
           ) : empty ? (
             <EmptyState filtered={filter !== "all"} onClear={() => setFilter("all")} />
           ) : (
@@ -187,7 +177,6 @@ export default function WorksPage() {
 function EmptyState({ filtered, onClear }: { filtered: boolean; onClear: () => void }) {
   return (
     <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
-      <div className="size-[110px] rounded-xl border border-line bg-[#1F1F26]" aria-hidden />
       <span className="text-[17px] font-bold text-fg">
         {filtered ? "이 종류의 작업이 아직 없어요" : "아직 만든 작업이 없어요"}
       </span>

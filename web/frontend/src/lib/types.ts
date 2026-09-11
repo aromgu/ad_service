@@ -50,6 +50,8 @@ export interface ProductRegForm {
   product_info: string;
   shipping: ShippingSettings;
   submit_mode: "auto" | "review";
+  /** 2c 에디터 '가격 설정'에서 정한 판매가 */
+  price?: number | null;
 }
 
 export interface Job {
@@ -137,6 +139,29 @@ export interface WorkspaceItem {
   created_at: string;
 }
 
+
+// ---------- 등록된 상품 관리 ----------
+/** 커머스 API 상품 목록의 한 줄 */
+export interface StoreProduct {
+  origin_product_no: string;
+  channel_product_no: string;
+  name: string;
+  /** SALE · OUTOFSTOCK · SUSPENSION · WAIT … */
+  status_type: string;
+  sale_price: number | null;
+  stock_quantity: number | null;
+  image_url: string | null;
+  category_name: string;
+  registered_at: string | null;
+  modified_at: string | null;
+}
+
+export interface StoreProductPage {
+  items: StoreProduct[];
+  page: number;
+  total: number;
+  total_pages: number;
+}
 
 // ---------- 상품등록 (4c) ----------
 export interface CategoryCandidate {

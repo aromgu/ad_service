@@ -70,11 +70,6 @@ export default function LandingPage() {
           </div>
           <div className="grid grid-cols-[1fr_140px_1fr] items-center gap-7 px-12 py-11">
             <div className="mx-auto w-full max-w-[400px] overflow-hidden rounded-xl border border-line bg-footer">
-              <div className="flex gap-1.5 border-b border-line px-3 py-2.5">
-                <span className="size-2 rounded-full bg-ph" />
-                <span className="size-2 rounded-full bg-ph" />
-                <span className="size-2 rounded-full bg-ph" />
-              </div>
               <Placeholder
                 src={before}
                 alt="휴대폰으로 찍은 제품 사진"
@@ -83,9 +78,8 @@ export default function LandingPage() {
               />
             </div>
 
-            <div className="flex flex-col items-center gap-2 text-muted">
+            <div className="flex flex-col items-center text-muted">
               <ArrowRight className="size-7 text-accent" />
-              <span className="text-[12px]">3초 소요</span>
             </div>
 
             <div className="mx-auto w-full max-w-[400px]">
@@ -118,7 +112,7 @@ export default function LandingPage() {
               key={s.no}
               className="flex flex-col gap-3 rounded-xl border border-line bg-surface px-[26px] py-[30px]"
             >
-              <div className="flex size-11 items-center justify-center rounded-[10px] bg-ph text-[12px] text-muted">
+              <div className="flex size-11 items-center justify-center rounded-[10px] border border-accent-line bg-accent-bg text-[13px] font-bold text-accent">
                 {s.no}
               </div>
               <span className="text-[17px] font-bold text-fg">{s.title}</span>

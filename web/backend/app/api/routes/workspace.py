@@ -14,7 +14,10 @@ def list_items(
     type: str | None = Query(default=None, description="detail_page | product_reg | blog"),
     limit: int = Query(default=50, le=200),
 ) -> list[WorkspaceItem]:
-    """내 작업(5a) 목록. 생성 중·실패한 작업도 카드로 함께 내려준다."""
+    """내 작업(5a) 목록. 생성 중·실패한 작업도 카드로 함께 내려준다.
+
+    스마트스토어에 등록까지 끝난 상품은 '등록된 상품 관리'에서 다루므로 여기선 뺀다.
+    """
     q = db.query(Job).filter(Job.user_id == user.id)
     if type:
         q = q.filter(Job.type == type)
@@ -36,6 +39,8 @@ def list_items(
     for j in jobs:
         doc = docs.get(j.document_id) if j.document_id else None
         draft = drafts.get(j.product_draft_id) if j.product_draft_id else None
+        if draft is not None and draft.status == "registered":
+            continue
         items.append(
             WorkspaceItem(
                 id=(doc.id if doc else draft.id if draft else j.id),

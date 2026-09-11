@@ -109,7 +109,8 @@ def _save_product_draft(db, job: Job, data: ProductDraftData) -> ProductDraft:
         seller_code=data.seller_code,
         category_candidates=data.category_candidates,
         selected_category=data.selected_category,
-        price=data.price,
+        # 사용자가 정한 판매가가 생성기 추정보다 우선한다.
+        price=form.get("price") or data.price,
         shipping_fee=data.shipping_fee,
         stock=data.stock,
         options=data.options,

@@ -16,6 +16,8 @@ const nextConfig: NextConfig = {
         port: port || undefined,
         pathname: "/static/**",
       },
+      // 스마트스토어에 올라간 상품 이미지 (등록된 상품 관리).
+      { protocol: "https", hostname: "**.pstatic.net" },
     ],
   },
 };

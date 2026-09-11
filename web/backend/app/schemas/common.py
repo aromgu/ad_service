@@ -95,6 +95,8 @@ class ProductRegForm(BaseModel):
     # auto  — 4c 를 건너뛰고 분석 후 바로 등록
     # review— 4c 검토 화면을 거친다
     submit_mode: Literal["auto", "review"] = "review"
+    # 2c 에디터의 '가격 설정'에서 정한 판매가. 없으면 검토 화면(4c)에서 입력한다.
+    price: int | None = Field(default=None, ge=0)
 
 
 # 장수 상·하한은 라우터의 IMAGE_RULES 에서 판단한다 (사용자에게 보여줄 메시지가 타입마다 다르므로).
@@ -260,6 +262,30 @@ class ProductDraftOut(ORMModel):
     naver_channel_product_no: str
     registered_at: datetime | None
     updated_at: datetime
+
+
+# ---------- 등록된 상품 관리 ----------
+class StoreProduct(BaseModel):
+    """커머스 API 상품 목록의 한 줄. 네이버 응답을 화면에 필요한 만큼만 펼쳤다."""
+
+    origin_product_no: str
+    channel_product_no: str = ""
+    name: str = ""
+    # SALE · OUTOFSTOCK · SUSPENSION · WAIT …
+    status_type: str = ""
+    sale_price: int | None = None
+    stock_quantity: int | None = None
+    image_url: str | None = None
+    category_name: str = ""
+    registered_at: str | None = None
+    modified_at: str | None = None
+
+
+class StoreProductPage(BaseModel):
+    items: list[StoreProduct]
+    page: int
+    total: int
+    total_pages: int
 
 
 class ProductDraftPatch(BaseModel):
