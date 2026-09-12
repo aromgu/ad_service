@@ -2,14 +2,25 @@
 #   docker compose -f docker/docker-compose.yml up api frontend      # CPU API 및 프론트엔드 실행
 #   docker compose -f docker/docker-compose.yml --profile gpu up     # GPU 추론 서버
 #   docker compose -f docker/docker-compose.yml --profile triton up triton
-
-# 1. 프론트엔드 (Streamlit) 서비스
 services:
+  # PostgreSQL 데이터베이스 서비스
+  db:
+    image: postgres:15-alpine
+    container_name: ad_service_db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: dbname
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      
   # 1. 프론트엔드 (Streamlit) 서비스
   frontend:
     build:
       context: ..
-      dockerfile: frontend/Dockerfile   # <-- 이 부분을 수정
+      dockerfile: frontend/Dockerfile
     image: ad-service:frontend
     ports:
       - "8501:8501"
@@ -18,7 +29,8 @@ services:
     environment:
       - API_BASE_URL=http://api:8000/api/v1
     command: streamlit run app.py --server.address=0.0.0.0 --server.port=8501
- # 2. 백엔드 CPU API 서버
+
+  # 2. 백엔드 CPU API 서버
   api:
     build:
       context: ..
@@ -30,8 +42,14 @@ services:
       - ../src:/app/src
       - ../configs:/app/configs
       - ../data:/app/data
+      - ../alembic.ini:/app/alembic.ini
+      - ../alembic:/app/alembic
+    environment:
+      # 📌 핵심 수정: psycopg2 대신 비동기 드라이버인 asyncpg 사용
+      - DATABASE_URL=postgresql+asyncpg://user:password@db:5432/dbname
+    depends_on:
+      - db
     command: uvicorn ad_service.api.main:app --host 0.0.0.0 --port 8000 --reload --app-dir /app/src
-
 
   # 3. 백엔드 GPU 추론 서버
   api-gpu:
@@ -73,3 +91,6 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+
+volumes:
+  postgres_data:

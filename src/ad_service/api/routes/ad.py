@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+
 from ad_service.schemas.ad import AdRequest, AdResponse
 
 router = APIRouter()
