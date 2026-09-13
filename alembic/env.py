@@ -11,6 +11,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.ad_service.database import Base
 from src.ad_service.core.config import settings
+import src.ad_service.models.test_model  # 임시 테스트 모델 임포트 추가
 
 config = context.config
 
